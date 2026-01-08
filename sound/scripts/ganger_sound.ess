@@ -1,0 +1,184 @@
+
+sound ganger/sound/ambient_roars
+{
+	random_file
+	{
+		audio_file      sound/samples/roar1.wav
+		audio_file      sound/samples/roar2.wav
+		audio_file      sound/samples/roar3.wav
+		audio_file      sound/samples/roar4.wav
+		audio_file      sound/samples/roar5.wav
+		audio_file      sound/samples/roar6.wav
+		audio_file      sound/samples/roar8.wav
+		audio_file      sound/samples/roar9.wav
+		audio_file      sound/samples/roar10.wav
+		audio_file      sound/samples/roar12.wav
+		audio_file      sound/samples/roar13.wav
+		audio_file      sound/samples/roar14.wav
+		audio_file      sound/samples/roar15.wav
+	}
+	
+    gain                1.0
+    looping             0
+    streaming			0
+	
+	freq_ratio_spread	0.2
+
+	group				"ambient"
+    rolloffFactor		6
+    referenceDistance	45
+	
+	description			"various roars"
+	notes				""
+	status				"beta"
+}
+
+
+sound ganger/sound/ambient_xenos
+{
+	random_file
+	{
+		audio_file		sound/samples/xeno/alien_1.wav
+		audio_file		sound/samples/xeno/alien_2.wav
+		audio_file		sound/samples/xeno/alien_3.wav
+		audio_file		sound/samples/xeno/alien_4.wav
+		audio_file		sound/samples/xeno/alien_5.wav
+		audio_file		sound/samples/xeno/alien_6.wav
+		audio_file		sound/samples/xeno/alien_7.wav
+		audio_file		sound/samples/xeno/alien_8.wav
+		audio_file		sound/samples/xeno/alien_9.wav
+		audio_file		sound/samples/xeno/alien_10.wav
+		audio_file		sound/samples/xeno/alien_11.wav
+		audio_file		sound/samples/xeno/alien_12.wav
+		audio_file		sound/samples/xeno/alien_13.wav
+		audio_file		sound/samples/xeno/alien_14.wav
+		audio_file		sound/samples/xeno/alien_15.wav
+		audio_file		sound/samples/xeno/alien_16.wav
+		audio_file		sound/samples/xeno/alien_17.wav
+		audio_file		sound/samples/xeno/alien_18.wav
+		audio_file		sound/samples/xeno/alien_19.wav
+		audio_file		sound/samples/xeno/alien_20.wav
+		audio_file		sound/samples/xeno/alien_21.wav
+		audio_file		sound/samples/xeno/alien_22.wav
+		audio_file		sound/samples/xeno/alien_23.wav
+	}
+	
+    gain                1.0
+    looping             0
+    streaming			0
+	
+	freq_ratio_spread	0.2
+
+	group				"ambient"
+    rolloffFactor		6
+    referenceDistance	45
+	
+	description			"various roars"
+	notes				""
+	status				"beta"
+}
+
+sound ganger/sound/ambient_herbivores
+{
+	random_file
+	{
+		audio_file      sound/samples/bleat1.wav
+		audio_file      sound/samples/bleat2.wav
+		audio_file      sound/samples/bleat3.wav
+		audio_file      sound/samples/bleat4.wav
+		audio_file      sound/samples/bleat5.wav
+		audio_file      sound/samples/bleat6.wav
+		audio_file      sound/samples/bleat7.wav
+		audio_file      sound/samples/bleat8.wav
+		//audio_file      sound/samples/bleat9.wav
+		audio_file      sound/samples/bleat10.wav
+		audio_file      sound/samples/bleat11.wav
+		audio_file      sound/samples/bleat12.wav
+		audio_file      sound/samples/rumble.wav		
+	}
+	
+    gain                0.7
+    looping             0
+    streaming			0
+	
+	freq_ratio_spread	0.2
+
+	group				"ambient"
+    rolloffFactor		6
+    referenceDistance	45
+	
+	description			"various roars"
+	notes				""
+	status				"beta"
+}
+
+sound ganger/sound/big_roar
+{
+	random_file
+	{
+		audio_file      sound/samples/gigantosaur.wav
+		audio_file      sound/samples/trex.wav
+		audio_file      sound/samples/godzilla.wav
+		audio_file      sound/samples/colossal-growl.wav	
+		audio_file      sound/samples/giant-walking.wav	
+	}
+	
+    gain                1.4
+    looping             0
+    streaming			0
+	
+	freq_ratio_spread	0.2
+
+	group				"player"
+    rolloffFactor		6
+    referenceDistance	45
+	
+	description			"big roar"
+	notes				""
+	status				"beta"
+}
+
+sound ganger/sound/long_rumble
+{
+	random_file
+	{
+		audio_file      sound/samples/long_rumble.wav
+		audio_file      sound/samples/slow_stampede.wav
+	}
+	
+    gain                1.5
+    looping             0
+    streaming			0
+	
+	freq_ratio_spread	0.2
+
+	group				"player"
+    rolloffFactor		6
+    referenceDistance	45
+	
+	description			"long rumble"
+	notes				""
+	status				"beta"
+}
+
+sound ganger/sound/redalert
+{
+	random_file
+	{
+		audio_file      sound/samples/redalert.wav
+	}
+	
+    gain                1.3
+    looping             0
+    streaming			0
+	
+	freq_ratio_spread	0.2
+
+	group				"player"
+    rolloffFactor		6
+    referenceDistance	45
+	
+	description			"five pulse siren"
+	notes				""
+	status				"beta"
+}

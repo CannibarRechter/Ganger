@@ -1,0 +1,63 @@
+FlowGraphBindings
+{
+	Database
+	{
+		Strings
+		{
+			StringData
+			{
+				value
+				key "ga_text"
+			}
+
+		}
+
+		Floats
+		{
+			FloatData
+			{
+				value "0.000"
+				key "ga_time"
+			}
+
+		}
+
+		Vectors
+		Integers
+	}
+
+	Bindings
+	{
+		ga_timer
+		{
+			//database@Floats@FloatData[0]@value "ga_time"
+			database
+			{
+				Floats
+				{
+					FloatData[0]
+					{
+						value "ga_time"
+					}
+
+				}
+
+				Strings
+				{
+					StringData[1]
+					{
+						value "ga_text"
+					}
+
+				}
+
+			}
+
+			//database@Strings@StringData[1]@value "ga_text"
+		}
+
+	}
+
+	DynamicBindings
+}
+

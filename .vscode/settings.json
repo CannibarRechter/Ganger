@@ -1,0 +1,67 @@
+{
+    "editor.semanticHighlighting.enabled": false,
+    "editor.renderWhitespace": "none",
+ //   "editor.occurrencesHighlight": "off",
+    "editor.renderControlCharacters": false,
+    "editor.experimentalWhitespaceRendering": "off",
+    "editor.detectIndentation": false,
+    "editor.insertSpaces": true,
+    "editor.autoIndent": "none",
+    "editor.autoClosingBrackets": "never",
+    "editor.autoClosingQuotes": "never",
+    "Lua.diagnostics.disable": [ "trailing-space", ],
+    "workbench.colorCustomizations": {
+    "editor.background": "#fffcf2",
+    "editor.selectionBackground": "#fffb0c",
+    },
+    "editor.tabSize": 4,
+    "[lua]": {
+        "editor.renderWhitespace": "none",
+    },
+    "editor.tokenColorCustomizations": {
+        "textMateRules": [ 
+            {
+                "scope": [ "keyword", "support.function.lua"],
+                "settings": {
+                    "fontStyle": "bold",
+                    "foreground": "#0000ff",
+                }
+            },
+            {
+                "scope": [ "keyword.control.lua", "constant", ],
+                "settings": {
+                    "fontStyle": "bold",
+                    "foreground": "#000000",
+                }
+            },
+            {
+                "scope": "comment",
+                "settings": {
+                    "foreground": "#3b7c3b",
+                }
+            },
+            // {
+            //     "scope": [ "string", ],
+            //     "settings": {
+            //         //"fontStyle": "underline",
+            //         "foreground": "#eb2a7a",
+            //     }
+            // },
+            {
+                "scope": [ "constant.character.escape", ],
+                "settings": {
+                    //"fontStyle": "underline",
+                    "foreground": "#eb2a7a",
+                }
+            },
+            {
+                "scope": [ "constant.numeric" ],
+                "settings": {
+                    //"fontStyle": "underline",
+                    "fontStyle": "bold",
+                    "foreground": "#000000",
+                }
+            },
+        ]
+    }
+}

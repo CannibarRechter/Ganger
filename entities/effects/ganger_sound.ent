@@ -1,0 +1,55 @@
+EntityBlueprint
+{
+	name ganger/effects/ambient_roars
+	
+	SoundDesc
+	{
+		name "ganger/sound/ambient_roars"
+	}
+}
+EntityBlueprint
+{
+	name ganger/effects/ambient_xenos
+	
+	SoundDesc
+	{
+		name "ganger/sound/ambient_xenos"
+	}
+}
+EntityBlueprint
+{
+	name ganger/effects/ambient_herbivores
+	
+	SoundDesc
+	{
+		name "ganger/sound/ambient_herbivores"
+	}
+}
+EntityBlueprint
+{
+	name ganger/effects/big_roar
+	
+	SoundDesc
+	{
+		name "ganger/sound/big_roar"
+	}
+}
+EntityBlueprint
+{
+	name ganger/effects/redalert
+	
+	SoundDesc
+	{
+		name "ganger/sound/redalert"
+	}
+}
+
+EntityBlueprint
+{
+	name ganger/effects/long_rumble
+	
+	SoundDesc
+	{
+		name "ganger/sound/long_rumble"
+	}
+}
