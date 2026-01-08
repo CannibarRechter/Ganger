@@ -45,6 +45,39 @@ local settings = {
     silence            = false
 }
 ------------------------------------------------------------------------------------
+function ganger_dom:LogSettings()
+	log(
+		"Settings: \n" ..
+
+		"  level:               " .. self.level .. "\n" ..
+		"  scaling:             " .. self.scaling .. "\n" ..
+		"  hp(Effective)        " .. self.hpEffective .. "\n" ..
+		"  waveStr:             " .. self.waveStrength .. "\n" ..
+		"  spawnPointCount:     " .. self.spawnPointCount .. "\n" ..
+		"  attackCount:         " .. self.attackCount .. "\n" ..
+		"  attackSize:          " .. self.attackSize .. "\n" ..
+		"  maxSpawnPointCount:  " .. self.maxSpawnPointCount .. "\n" ..
+		"  maxAttackSize:       " .. self.maxAttackSize .. "\n" ..
+
+		"  warmupTime:          " .. self.warmupTime .. "\n" ..
+		"  waveTime:            " .. self.waveTime .. "\n" ..
+		"  multiAttackTime:     " .. self.multiAttackTime .. "\n" ..
+		"  ambientDelay:        " .. self.ambientDelay .. "\n" ..
+		"  buffDelay:           " .. self.buffDelay .. "\n" ..
+		"  politeTime:          " .. self.politeTime .. "\n" ..
+		"  recentRuntime:       " .. self.recentRuntime .. "\n" ..
+		"  priorRuntime:        " .. self.priorRuntime .. "\n" ..
+		"  totalWaves:          " .. self.totalWaves .. "\n" ..
+
+        "  testMode:            " .. tostring( self.testMode ) .. "\n" ..
+        "  silence:             " .. tostring( self.silence )
+		)
+
+    --log("waveset:")
+    --gwaves:LogWaveSet( self.wave_set )
+
+end
+------------------------------------------------------------------------------------
 -- InitSettings; called only once at game start (with Init)
 -- Note: data in dom is automatically persistent
 ------------------------------------------------------------------------------------
@@ -103,41 +136,9 @@ function ganger_dom:SanitizeSettings()
             self[k] = v
         end
     end
-    -- FUTURE function calls here only if needed
+    -- FUTURE function calls here only if needed (new vars from game data)
 end
-------------------------------------------------------------------------------------
-function ganger_dom:LogSettings()
-	log(
-		"Settings: \n" ..
 
-		"  level:               " .. self.level .. "\n" ..
-		"  scaling:             " .. self.scaling .. "\n" ..
-		"  hp(Effective)        " .. self.hpEffective .. "\n" ..
-		"  waveStr:             " .. self.waveStrength .. "\n" ..
-		"  spawnPointCount:     " .. self.spawnPointCount .. "\n" ..
-		"  attackCount:         " .. self.attackCount .. "\n" ..
-		"  attackSize:          " .. self.attackSize .. "\n" ..
-		"  maxSpawnPointCount:  " .. self.maxSpawnPointCount .. "\n" ..
-		"  maxAttackSize:       " .. self.maxAttackSize .. "\n" ..
-
-		"  warmupTime:          " .. self.warmupTime .. "\n" ..
-		"  waveTime:            " .. self.waveTime .. "\n" ..
-		"  multiAttackTime:     " .. self.multiAttackTime .. "\n" ..
-		"  ambientDelay:        " .. self.ambientDelay .. "\n" ..
-		"  buffDelay:           " .. self.buffDelay .. "\n" ..
-		"  politeTime:          " .. self.politeTime .. "\n" ..
-		"  recentRuntime:       " .. self.recentRuntime .. "\n" ..
-		"  priorRuntime:        " .. self.priorRuntime .. "\n" ..
-		"  totalWaves:          " .. self.totalWaves .. "\n" ..
-
-        "  testMode:            " .. tostring( self.testMode ) .. "\n" ..
-        "  silence:             " .. tostring( self.silence )
-		)
-
-    --log("waveset:")
-    --gwaves:LogWaveSet( self.wave_set )
-
-end
 ------------------------------------------------------------------------------------
 -- Init dom; runs only once
 ------------------------------------------------------------------------------------
@@ -178,9 +179,9 @@ GANGSAFE(function()
 
     self.buffm:AddState("buff",   	  { enter=  "BuffStart",    exit="BuffEnd"   	}) -- entity buffer
 
-    self.ambientm:AddState("ambient", { enter=  "AmbientStart", exit="AmbientEnd" }) -- ambient sounds
-    self.susm:AddState("sus",         { enter=  "SusStart",     exit="SusEnd" 	}) -- sussurus sounds
-    self.alarmm:AddState("alarm",     { enter=  "AlarmStart",   exit="AlarmEnd" 	}) -- alarm sound
+    self.ambientm:AddState("ambient", { enter=  "AmbientStart", exit="AmbientEnd"    }) -- ambient sounds
+    self.susm:AddState("sus",         { enter=  "SusStart",     exit="SusEnd" 	     }) -- sussurus sounds
+    self.alarmm:AddState("alarm",     { enter=  "AlarmStart",   exit="AlarmEnd" 	 }) -- alarm sound
 
 	-- start your engines!
 
@@ -459,7 +460,6 @@ end
 ------------------------------------------------------------------------
 function ganger_dom:ProcessDifficultyIncrease(state)
 
-    log("DifficultyIncrease()")
     -- no upper limit on scaling; just go until the player fails
 
     self.level = self.level + 1
@@ -482,7 +482,9 @@ function ganger_dom:ProcessDifficultyIncrease(state)
     end
 
     gwaves:GrowWaveSet( self.wave_set )
-    self:LogSettings()
+    log("DifficultyIncrease(): lvl=%d; hp=%.1f; #sps=%.1f; #attacks=%.1f; attacksz=%.1f",
+        self.hpEffective, self.spawnPointCount, self.attackCount, self.attackSize
+        )
 
 end
 ------------------------------------------------------------------------------------

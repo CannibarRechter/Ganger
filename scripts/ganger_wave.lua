@@ -83,7 +83,7 @@ function ganger_wave:GrowWaveSet( wave_set )
     local growth_boss     = .001
     local growth_ultra    = .008
     local growth_alpha    = .016
-    local decay_standard  = .5
+    local decay_standard  = .1
 
     local to_remove = {}
     for i,v in ipairs( wave_set.blueprints ) do
@@ -103,7 +103,7 @@ function ganger_wave:GrowWaveSet( wave_set )
 
     self:InitWaveSet( wave_set ) -- reaccumulate
 
-    self:LogWaveSet( wave_set )
+    --self:LogWaveSet( wave_set )
 
 end
 -------------------------------------------------------------------------

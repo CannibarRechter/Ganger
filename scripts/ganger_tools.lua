@@ -16,9 +16,9 @@ function ganger_tools:PlaySoundOnPlayer( sound )
     local playerEnt = ganger_tools:GetPlayer()
     local ok, err = pcall(function()
         local entity = EntityService:SpawnEntity( sound, playerEnt, "" ) 
-        EntityService:CreateOrSetLifetime( entity, 20, "normal" )
+        EntityService:CreateOrSetLifetime( entity, 120, "normal" ) -- sound no longer than 2 min
         end)
-    -- TODO: check lifetime
+
     if not ok then
 		log("sound failed: " .. sound .. ": " .. tostring(err))       
     end
