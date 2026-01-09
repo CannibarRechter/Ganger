@@ -9,7 +9,7 @@ require("ganger/ganger_safe.lua")
 local gtools = require("ganger/ganger_tools.lua")
 local gspawn = require("ganger/ganger_spawn.lua")
 local gchaos = require("ganger/ganger_chaos.lua")
-local gwaves = require("ganger/ganger_wave.lua")
+local gwave = require("ganger/ganger_wave.lua")
 local log = require("ganger/ganger_logger.lua")
 ------------------------------------------------------------------------------------
 -- CLASS PLUMBING
@@ -45,7 +45,7 @@ local settings = {
 
     testMode           = false,
     silence            = false,
-    ganger_chaos       = true
+    chaos              = true
 }
 ------------------------------------------------------------------------------------
 function ganger_dom:LogSettings()
@@ -81,7 +81,7 @@ function ganger_dom:LogSettings()
 		)
 
     --log("waveset:")
-    --gwaves:LogWaveSet( self.currentWaveSet )
+    --gwave:LogWaveSet( self.currentWaveSet )
 
 end
 ------------------------------------------------------------------------------------
@@ -99,7 +99,7 @@ function ganger_dom:InitSettings( )
 	self.attackCount         = DifficultyService:GetAttacksCountMultiplier()
 	self.warmupTime          = DifficultyService:GetWarmupDuration()
 	self.waveTime            = DifficultyService:GetWaveIntermissionTime()
-    self.currentWaveSet      = gwaves:GetWaveSet()
+    self.currentWaveSet      = gwave:GetWaveSet()
     self.currentSpawnPoints  = nil
     
     --self.buffList = {}
@@ -199,7 +199,7 @@ GANGSAFE(function()
 
 	-- start your engines!
 
-	self.actionm:ChangeState("prep")
+	--self.actionm:ChangeState("prep")
     self.ambientm:ChangeState("ambient")
     self.chaosm:ChangeState("chaos")
 
@@ -223,10 +223,7 @@ GANGSAFE(function()
     self:SanitizeSettings()
     self:LogSettings()
     self:PatchGame()
-
-    -- local selfStr = gtools.PrettyPrint( getmetatable(self) )
-    -- log("self:\n%s", selfStr)
-
+    gwave:LogWaveSet( self.currentWaveSet )
 end)
 end
 ------------------------------------------------------------------------------------
@@ -375,7 +372,7 @@ GANGSAFE(function()
         time_delay = self.waveTime/2 + self.warmupTime
     end
 
-    log("ChaosStart()")
+    --log("ChaosStart()")
     state:SetDurationLimit( time_delay )
 
 end)
@@ -384,17 +381,16 @@ end
 function ganger_dom:ChaosEnd(state)
 GANGSAFE(function()
 
-    log("ChaosEnd()")
+    --log("ChaosEnd()")
+
+    if not self.chaosCount then self.chaosCount = 0
+    else self.chaosCount = self.chaosCount + 1 end
+    if self.chaosCount > 6 then return end
 
     local chaos = gchaos:MaybeCauseChaos( 1 )
 
     if (chaos) then
         self.lastChaosTime = GetLogicTime()
-        -- local eventName = chaos[1]
-        -- local eventQuant = chaos[2]
-        -- log("Chaos event: %s, %.1fd", eventName, eventQuant)
-    else
-        log("No chaos")
     end
 
     self.chaosm:ChangeState("chaos")
@@ -561,7 +557,7 @@ function ganger_dom:ProcessDifficultyIncrease(state)
         self.spawnPointCount = self.maxSpawnPointCount
     end
 
-    gwaves:GrowWaveSet( self.currentWaveSet )
+    gwave:GrowWaveSet( self.currentWaveSet )
     log("DifficultyIncrease(): lvl=%d; hp=%.1f; #sps=%.1f; #attacks=%.1f; attacksz=%.1f",
         self.level, self.hpEffective, self.spawnPointCount, self.attackCount, self.attackSize
         )

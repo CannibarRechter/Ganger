@@ -33,9 +33,98 @@ function ganger_tools:GetPlayer()
     return nil
 end
 ------------------------------------------------------------------------------------
+-- Spawn Validated Enemy
+------------------------------------------------------------------------------------
+function ganger_tools:SpawnEnemy( blueprint, spawnPoint, groupName, aggression )
+    if ResourceManager:ResourceExists( "EntityBlueprint", blueprint ) then
+        local enemy = nil
+        if aggression == UNIT_AGGRESSIVE then
+            enemy = EntityService:SpawnEntity( blueprint, spawnPoint, "wave_enemy")
+            UnitService:SetInitialState( enemy, aggression )
+        elseif aggression == UNIT_DEFENDER then
+            enemy = EntityService:SpawnEntity( blueprint, spawnPoint, "enemy")
+            UnitService:SetInitialState( enemy, UNIT_AGGRESSIVE )
+            UnitService:DefendSpot( enemy, 25, 100 )
+        end
+        if enemy then EntityService:SetName( enemy, groupName ) end
+        return enemy
+    else
+        return nil
+    end
+    --local entity = EntityService:SpawnEntity( blueprint, x, y, z, "wave_enemy")
+end
+-------------------------------------------------------------------------
+-- Find All Border Spawn Points: returns all spawn points on map edges
+-------------------------------------------------------------------------
+function ganger_tools:FindAllBorderSpawnPoints()
+    local all_points = {}
+    for _,region in ipairs({
+        "spawn_enemy_border_south",
+		"spawn_enemy_border_north",
+		"spawn_enemy_border_east",
+		"spawn_enemy_border_west"
+        }) do
+
+        local spawn_points = FindService:FindEntitiesByGroup(region)
+        Concat( all_points, spawn_points )
+    end
+    return all_points
+end
+-------------------------------------------------------------------------
+-- Find Admissable Interior Spawnpoints (logic/spawn_objective)
+-------------------------------------------------------------------------
+function ganger_tools:FindAdmissibleInteriorSpawnPoints()
+
+    local denyEnt = nil
+
+    local hq = FindService:FindEntitiesByType("Headquarters")
+    if hq and #hq > 0 then
+        denyEnt = hq[1]
+        log("using HQ")
+    else 
+        denyEnt = self:GetPlayer()
+        log("using player")
+    end
+
+    if not denyEnt then return nil end
+
+    local objectives = self:FindAllInteriorSpawnPoints()
+    local admissibleObjectives = {}
+
+    log("scanning %d possible objectives", #objectives)
+    
+    for _,objective in ipairs( objectives ) do
+        local denyPos = EntityService:GetPosition( denyEnt )
+        local objPos  = EntityService:GetPosition( objective )
+        if Distance( denyPos, objPos ) > 300 then
+            table.insert( admissibleObjectives, objective )
+        end
+        --local x, y, z = pos.x, pos.y, pos.z
+    end
+
+    log("found %d admissible objectives", #admissibleObjectives)
+
+    return admissibleObjectives
+
+end
+-------------------------------------------------------------------------
+-- Find Admissable Interior Spawnpoints (logic/spawn_objective)
+-------------------------------------------------------------------------
+function ganger_tools:FindAllInteriorSpawnPoints()
+    local object_spawnpoints = FindService:FindEntitiesByBlueprint("logic/spawn_objective")
+    return object_spawnpoints
+end
+-------------------------------------------------------------------------
+-- Find All Player Spawn Points: returns player spawn points (1/cell typ)
+-------------------------------------------------------------------------
+function ganger_tools:FindAllPlayerSpawnPoints()
+    local player_spawnpoints = FindService:FindEntitiesByBlueprint("logic/spawn_player")
+    return player_spawnpoints
+end
+------------------------------------------------------------------------------------
 -- Takes n random draws from a table
 ------------------------------------------------------------------------------------
-function ganger_tools:DrawRandomsFromTable(table, count)
+function ganger_tools:DrawDistinctRandomsFromTable(table, count)
 
     local n = math.floor( count + 0.5 )
     local copy = {}
@@ -58,6 +147,56 @@ function ganger_tools:DrawRandomsFromTable(table, count)
     end
     
     return result
+end
+------------------------------------------------------------------------------------
+-- Buffs enemies; keeps a buff list so we don't buff twice
+------------------------------------------------------------------------------------
+function ganger_tools:BuffEnemies( enemies, hpEffective )
+
+    local buff_count = 0
+
+    for _,enemy in ipairs ( enemies ) do
+        --log("buffing " .. k .. ":" .. v)
+		if self:BuffSingleEnemy( enemy, hpEffective ) then
+            buff_count = buff_count + 1
+        end
+	end
+
+	log("BuffEnemies(): buffed enemies count#: %d", buff_count)
+
+end
+------------------------------------------------------------------------------------
+-- Buffs single enemy
+------------------------------------------------------------------------------------
+function ganger_tools:BuffSingleEnemy( enemy, hpEffective )
+
+    -- protect against case of player in enemy list (more efficient to eliminate here)
+    -- is an edge case for when the buff list pulls from the map
+
+    if ( enemy == self:GetPlayer() ) then return end 
+
+    --local healthComponent = EntityService:GetComponent( enemy, "HealthComponent" )
+
+	local health = HealthService:GetHealth(enemy)
+	local max_health = HealthService:GetMaxHealth(enemy)
+
+    -- only buff uninjured enemies; protects for spawns in progress
+	if health == max_health and health > 0 then
+        --hpEffective = .1 -- tmp
+		HealthService:SetMaxHealth ( enemy, max_health*hpEffective )
+		HealthService:SetHealth ( enemy, health*hpEffective )
+
+        local after_health = HealthService:GetHealth(enemy)
+	    local after_max_health = HealthService:GetMaxHealth(enemy)
+
+        --log("buffed %d: %d/%d (%.2f) --> %d/%d", enemy, health, max_health, hpEffective, after_health, after_max_health)
+        return true
+    else
+
+        log("#### skipping %d: %d/%d", enemy,  health, max_health)
+        return false
+	end
+
 end
 ------------------------------------------------------------------------------------
 -- Send a LUA object to be printed

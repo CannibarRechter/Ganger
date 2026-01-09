@@ -50,8 +50,9 @@ function ganger_spawn:SpawnWaves( spawnPoints, currentWaveSet, attackSize )
         local wave = gwave:CreateWave( currentWaveSet, attackSize )
         log("SPAWNPOINT: %d: %d,%d,%d ====> SPAWNING %d blueprint sets", spawnPoint, x, y, z, Size(wave))
 
-        --gwave:LogWave( wave )
+        gwave:LogWave( wave )
         for blueprint, count in pairs ( wave ) do
+            log("spawn_at_spawnpoint %s: %d", blueprint, count)
             self:SpawnAtSpawnPoint( blueprint, spawnPoint, waveName, count )
         end
         --local foundEntities = FindService:FindEntitiesByBlueprintInRadius( spawnPoint, blueprint, 50)
@@ -71,17 +72,13 @@ function ganger_spawn:SpawnAtSpawnPoint ( blueprint, spawnPoint, waveName, count
 
     local entities = {}
     for i = 1, count do
-
-        if ResourceManager:ResourceExists( "EntityBlueprint", blueprint ) then
-            local enemy = EntityService:SpawnEntity( blueprint, spawnPoint, "wave_enemy")
-            EntityService:SetName( enemy, waveName )
-            UnitService:SetInitialState( enemy, UNIT_AGGRESSIVE)
+        local enemy = gtools:SpawnEnemy( blueprint, spawnPoint, waveName, UNIT_AGGRESSIVE )
+        if enemy then
             self:BuffSingleEnemy( enemy, GANGER_INSTANCE.hpEffective )
             table.insert( entities, enemy )
         else
             log("#### invalid blueprint %s", blueprint )
         end
-        --local entity = EntityService:SpawnEntity( blueprint, x, y, z, "wave_enemy")
     end
     --log(">>>> created %d %s at spawnpoint", #entities, blueprint)
 end
@@ -91,67 +88,10 @@ end
 -------------------------------------------------------------------------
 function ganger_spawn:PickSpawnPoints( spawnPointCount )
     --self.spawnPoints = { gtools:GetPlayer() }
-    local allSpawnPoints = self:FindAllBorderSpawnPoints()
+    local allSpawnPoints = gtools:FindAllBorderSpawnPoints()
     -- local allSpawnPoints = self:FindAllPlayerSpawnPoints()
-    self.spawnPoints = gtools:DrawRandomsFromTable( allSpawnPoints, spawnPointCount )
+    self.spawnPoints = gtools:DrawDistinctRandomsFromTable( allSpawnPoints, spawnPointCount )
     return self.spawnPoints
-end
--------------------------------------------------------------------------
--- Find All Border Spawn Points: returns all spawn points on map edges
--------------------------------------------------------------------------
-function ganger_spawn:FindAllBorderSpawnPoints()
-    local all_points = {}
-    for _,region in ipairs({
-        "spawn_enemy_border_south",
-		"spawn_enemy_border_north",
-		"spawn_enemy_border_east",
-		"spawn_enemy_border_west"
-        }) do
-
-        local spawn_points = FindService:FindEntitiesByGroup(region)
-        Concat( all_points, spawn_points )
-    end
-    return all_points
-end
--------------------------------------------------------------------------
--- Find All Player Spawn Points: returns player spawn points (1/cell typ)
--------------------------------------------------------------------------
-function ganger_spawn:FindAllPlayerSpawnPoints()
-    local player_spawnpoints = FindService:FindEntitiesByBlueprint("logic/spawn_player")
-    return player_spawnpoints
-end
-------------------------------------------------------------------------------------
--- Buffs single enemy
-------------------------------------------------------------------------------------
-function ganger_spawn:BuffSingleEnemy( enemy, hpEffective )
-
-    -- protect against case of player in enemy list (more efficient to eliminate here)
-    -- is an edge case for when the buff list pulls from the map
-
-    if ( enemy == gtools:GetPlayer() ) then return end 
-
-    --local healthComponent = EntityService:GetComponent( enemy, "HealthComponent" )
-
-	local health = HealthService:GetHealth(enemy)
-	local max_health = HealthService:GetMaxHealth(enemy)
-
-    -- only buff uninjured enemies; protects for spawns in progress
-	if health == max_health and health > 1 then
-        --hpEffective = .1 -- tmp
-		HealthService:SetMaxHealth ( enemy, max_health*hpEffective )
-		HealthService:SetHealth ( enemy, health*hpEffective )
-
-        local after_health = HealthService:GetHealth(enemy)
-	    local after_max_health = HealthService:GetMaxHealth(enemy)
-
-        --log("buffed %d: %d/%d (%.2f) --> %d/%d", enemy, health, max_health, hpEffective, after_health, after_max_health)
-        return true
-    else
-
-        log("#### skipping %d: %d/%d", enemy,  health, max_health)
-        return false
-	end
-
 end
 ------------------------------------------------------------------------------------
 -- Buffs enemies; keeps a buff list so we don't buff twice
@@ -160,24 +100,7 @@ function ganger_spawn:BuffEnemiesByWaveName( waveName, hpEffective )
     local allGangers = FindService:FindEntitiesByName( waveName )
     --gtools:InspectObject( allGangers )
     log(">>>> found: %d entities by %s", #allGangers, waveName)
-    self:BuffEnemies( allGangers, hpEffective )
-end
-------------------------------------------------------------------------------------
--- Buffs enemies; keeps a buff list so we don't buff twice
-------------------------------------------------------------------------------------
-function ganger_spawn:BuffEnemies( enemies, hpEffective )
-
-    local buff_count = 0
-
-    for _,enemy in ipairs ( enemies ) do
-        --log("buffing " .. k .. ":" .. v)
-		if self:BuffSingleEnemy( enemy, hpEffective ) then
-            buff_count = buff_count + 1
-        end
-	end
-
-	log("BuffEnemies(): buffed enemies count#: %d", buff_count)
-
+    gtools:BuffEnemies( allGangers, hpEffective )
 end
 ------------------------------------------------------------------------------------
 return ganger_spawn
