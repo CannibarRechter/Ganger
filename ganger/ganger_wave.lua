@@ -1,15 +1,34 @@
 require("lua/utils/table_utils.lua")
-local log = require("scripts/ganger_logger.lua")
-local ganger_wave = {}
+local gtools = require("ganger/ganger_tools.lua")
+local log = require("ganger/ganger_logger.lua")
+-------------------------------------------------------------------------
+-- CLASS PLUMBING
+-------------------------------------------------------------------------
+local ganger_wave = { }
+-- class 'ganger_wave' ( LuaGraphNode )
+-- function ganger_wave:__init()
+--     LuaGraphNode.__init(self, self)
+-- end
+-------------------------------------------------------------------------
+-- function ganger_wave:init()
+-- GANGSAFE(function()
+--     log("ganger_wave:INIT()")
+--     -- local selfStr = gtools.PrettyPrint( self.waveSets )
+--     -- log("waveSets:\n%s", selfStr)
+-- end)
+-- end
+-------------------------------------------------------------------------
+-- function ganger_wave:OnLoad()
+-- GANGSAFE(function()
+--     log("ganger_wave:LOAD()")
+--     -- local selfStr = gtools.PrettyPrint( self.waveSets )
+--     -- log("waveSets:\n%s", selfStr)
+-- end)
+-- end
 -------------------------------------------------------------------------
 -- Ganger wave sets (weighted compositions by biome)
 -------------------------------------------------------------------------
--- compositions: weight, cumulative weight (for random draw), blueprint
--- probability recalculated based on weight, dynamically
--- initial mix: see biome weightings for bases
--- alphas=10%;ultras=5%;boss=1% for initial weightings
--------------------------------------------------------------------------
-local blueprints = {
+local wave_sets = { -- do not modify at runtime, results will be discarded
 -------------------------------------------------------------------------
 -- DESERT
 -------------------------------------------------------------------------
@@ -48,17 +67,20 @@ local blueprints = {
     }
 }
 -------------------------------------------------------------------------
--- Get an initialized BPSet: note must be deep copied for persistence
--- and compatability with the DOM
+-- Get an initialized Wave Set (defaults to current biome)
 -------------------------------------------------------------------------
-function ganger_wave:GetWaveSet()
+function ganger_wave:GetWaveSet( biome )
 
-    local biome = MissionService:GetCurrentBiomeName()
-    local wave_set = blueprints[biome]
-    if not wave_set then return end
+    biome = biome or MissionService:GetCurrentBiomeName()
+
+    local wave_set = wave_sets[biome]
+    if not wave_set then
+        log("#### ERROR: unsupported biome %s", biome)
+        return
+    end
     self:InitWaveSet ( wave_set )
 
-    -- DOM must have a copy or it won't persist between saves
+    --self.waveSet = wave_set
     return DeepCopy( wave_set )
 
 end
@@ -79,6 +101,8 @@ end
 -- Grow Wave Set: increments base weights and then reaccumulates
 -------------------------------------------------------------------------
 function ganger_wave:GrowWaveSet( wave_set )
+
+    if wave_set == nil then log("#### GrowWaveSet: nil wave_set") end
 
     local growth_boss     = .001
     local growth_ultra    = .008

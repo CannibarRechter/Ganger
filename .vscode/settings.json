@@ -1,5 +1,6 @@
 {
     "editor.semanticHighlighting.enabled": false,
+    "editor.inlineSuggest.enabled": false,
     "editor.renderWhitespace": "none",
  //   "editor.occurrencesHighlight": "off",
     "editor.renderControlCharacters": false,

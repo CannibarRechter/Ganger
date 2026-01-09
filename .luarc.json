@@ -26,6 +26,7 @@
     "RandInt",
     "RegisterGlobalEventHandler",
     "Remove",
+    "ResourceManager",
     "Size",
     "UnitService",
     "UNIT_AGGRESSIVE",
@@ -33,8 +34,11 @@
     "UNIT_FEAR",
     "UNIT_WANDER",
     "class",
+    "dom_mananger",
     "GANGER_INSTANCE",
     "ganger_dom",
-    "survival_desert"
+    "ganger_spawn",
+    "ganger_wave",
+    "survival_base"
   ]
 }

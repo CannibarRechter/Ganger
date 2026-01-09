@@ -1,4 +1,4 @@
-local log = require("scripts/ganger_logger.lua")
+local log = require("ganger/ganger_logger.lua")
 ------------------------------------------------------------------------------------
 -- Ganger customer error handler for xpcall
 ------------------------------------------------------------------------------------

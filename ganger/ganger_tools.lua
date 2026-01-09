@@ -1,6 +1,6 @@
-local log = require("scripts/ganger_logger.lua")
-local enemy_blueprints = require("scripts/ganger_blueprints.lua")
-local enemy_unittypes = require("scripts/ganger_unittypes.lua")
+local log = require("ganger/ganger_logger.lua")
+local enemy_blueprints = require("ganger/ganger_blueprints.lua")
+local enemy_unittypes = require("ganger/ganger_unittypes.lua")
 ------------------------------------------------------------------------------------
 local ganger_tools = {}
 ------------------------------------------------------------------------------------
@@ -16,7 +16,7 @@ function ganger_tools:PlaySoundOnPlayer( sound )
     local playerEnt = ganger_tools:GetPlayer()
     local ok, err = pcall(function()
         local entity = EntityService:SpawnEntity( sound, playerEnt, "" ) 
-        EntityService:CreateOrSetLifetime( entity, 120, "normal" ) -- sound no longer than 2 min
+        --EntityService:CreateOrSetLifetime( entity, 120, "normal" ) -- unneeded if base bp is correct
         end)
 
     if not ok then
@@ -58,6 +58,97 @@ function ganger_tools:DrawRandomsFromTable(table, count)
     end
     
     return result
+end
+------------------------------------------------------------------------------------
+-- Send a LUA object to be printed
+------------------------------------------------------------------------------------
+function ganger_tools:InspectObject(obj)
+    
+    -- Direct properties
+    log("Direct properties:")
+    for key, value in pairs(obj) do
+        log("  " .. key .. " = " .. type(value) .. ": " .. tostring(value))
+    end
+    
+    -- Metatable
+    local mt = getmetatable(obj)
+    if mt then
+        log("Metatable:")
+        for key, value in pairs(mt) do
+            log("  " .. key .. " = " .. type(value))
+        end
+        
+        -- Check __index (common for methods)
+        if mt.__index then
+            log("__index contents:")
+            if type(mt.__index) == "table" then
+                for key, value in pairs(mt.__index) do
+                    log("    " .. key .. " = " .. type(value) .. ": " .. tostring(value))
+                end
+            else
+                log("    __index is a " .. type(mt.__index))
+            end
+        end
+	end
+end
+function ganger_tools:PrettyPrintToStr(tbl, indent)
+    indent = indent or 0
+    local spaces = string.rep("  ", indent)
+    local result = {}
+    
+    -- Check if table is an array (consecutive integer keys starting at 1)
+    local isArray = true
+    local maxIndex = 0
+    for k, v in pairs(tbl) do
+        if type(k) ~= "number" or k ~= math.floor(k) or k < 1 then
+            isArray = false
+            break
+        end
+        maxIndex = math.max(maxIndex, k)
+    end
+    if isArray then
+        for i = 1, maxIndex do
+            if tbl[i] == nil then
+                isArray = false
+                break
+            end
+        end
+    end
+    
+    if isArray then
+        -- Print as array
+        table.insert(result, "[\n")
+        for i, v in ipairs(tbl) do
+            if type(v) == "table" then
+                table.insert(result, spaces .. "  " .. ganger_tools:PrettyPrintToStr(v, indent + 1))
+            elseif type(v) == "string" then
+                table.insert(result, spaces .. "  \"" .. v .. "\"\n")
+            elseif type(v) == "number" then
+                table.insert(result, spaces .. "  " .. tostring(v) .. "\n")
+            else
+                table.insert(result, spaces .. "  " .. tostring(v) .. "\n")
+            end
+        end
+        table.insert(result, spaces .. "]\n")
+    else
+        -- Print as dictionary
+        table.insert(result, "{\n")
+        for k, v in pairs(tbl) do
+            local key = type(k) == "string" and k or "[" .. tostring(k) .. "]"
+            if type(v) == "table" then
+                table.insert(result, spaces .. "  " .. key .. ": " .. ganger_tools:PrettyPrintToStr(v, indent + 1))
+            elseif type(v) == "string" then
+                table.insert(result, spaces .. "  " .. key .. ": \"" .. v .. "\"\n")
+            elseif type(v) == "number" then
+                table.insert(result, spaces .. "  " .. key .. ": " .. tostring(v) .. "\n")
+            else
+                table.insert(result, spaces .. "  " .. key .. ": " .. tostring(v) .. "\n")
+            end
+        end
+        table.insert(result, spaces .. "}\n")
+    end
+    
+    return table.concat(result)
 end
 ------------------------------------------------------------------------------------
 -- Find all map enemies (probably obsolete)
@@ -122,7 +213,7 @@ function ganger_tools:FindAllMapEnemies()
         --     log("typeof teamstruct: %s", tostring(type(teamStruct)))
         --     local json = require("scripts/dkjson.lua")
         --     local teamStr = json:encode( teamStruct )
-        --     local InspectObject = require("scripts/ganger_inspector.lua")
+        --     local InspectObject = require("ganger/ganger_inspector.lua")
         --     InspectObject( teamStruct )
         --     log("teamstruct %s", teamStr)
         --     -- if teamStruct.team == "neutral" then      

@@ -5,11 +5,12 @@
 -- the game from crashing and should not be removed. It is only mandatory where
 -- presently coded
 ------------------------------------------------------------------------------------require("lua/utils/table_utils.lua")
-require("scripts/ganger_safe.lua")
-local gtools = require("scripts/ganger_tools.lua")
-local gspawn = require("scripts/ganger_spawn.lua")
-local gwaves = require("scripts/ganger_wave.lua")
-local log = require("scripts/ganger_logger.lua")
+require("ganger/ganger_safe.lua")
+local gtools = require("ganger/ganger_tools.lua")
+local gspawn = require("ganger/ganger_spawn.lua")
+local gchaos = require("ganger/ganger_chaos.lua")
+local gwaves = require("ganger/ganger_wave.lua")
+local log = require("ganger/ganger_logger.lua")
 ------------------------------------------------------------------------------------
 -- CLASS PLUMBING
 ------------------------------------------------------------------------------------
@@ -25,7 +26,7 @@ local settings = {
     difficultyMult     = 1,
     hpEffective        = 1,
     waveStrength       = nil,
-    spawnPointCount    = 1,
+    spawnPointCount    = 2,
     attackCount        = nil,
     attackSize         = 100,
     maxSpawnPointCount = 12,
@@ -39,10 +40,12 @@ local settings = {
     politeTime         = 10,
     recentRuntime      = 0,
     priorRuntime       = 0,
-
+    lastChaosTime      = 0,
     totalWaves         = 0,
+
     testMode           = false,
-    silence            = false
+    silence            = false,
+    ganger_chaos       = true
 }
 ------------------------------------------------------------------------------------
 function ganger_dom:LogSettings()
@@ -67,14 +70,18 @@ function ganger_dom:LogSettings()
 		"  politeTime:          " .. self.politeTime .. "\n" ..
 		"  recentRuntime:       " .. self.recentRuntime .. "\n" ..
 		"  priorRuntime:        " .. self.priorRuntime .. "\n" ..
+		"  lastChaosTime:       " .. self.lastChaosTime .. "\n" ..
 		"  totalWaves:          " .. self.totalWaves .. "\n" ..
 
+        "  currentWaveSet:      " .. tostring( self.currentWaveSet ) .. "\n" ..
+        "  currentSpawnPoints:  " .. tostring( self.currentSpawnPoints ) .. "\n" ..
         "  testMode:            " .. tostring( self.testMode ) .. "\n" ..
+        "  chaos:               " .. tostring( self.chaos ) .. "\n" ..
         "  silence:             " .. tostring( self.silence )
 		)
 
     --log("waveset:")
-    --gwaves:LogWaveSet( self.wave_set )
+    --gwaves:LogWaveSet( self.currentWaveSet )
 
 end
 ------------------------------------------------------------------------------------
@@ -92,9 +99,10 @@ function ganger_dom:InitSettings( )
 	self.attackCount         = DifficultyService:GetAttacksCountMultiplier()
 	self.warmupTime          = DifficultyService:GetWarmupDuration()
 	self.waveTime            = DifficultyService:GetWaveIntermissionTime()
-    self.wave_set            = gwaves:GetWaveSet()
+    self.currentWaveSet      = gwaves:GetWaveSet()
+    self.currentSpawnPoints  = nil
     
-    self.buffList = {}
+    --self.buffList = {}
 
     local ok = GANGSAFE(function()
         local prefs = require("ganger/ganger_prefs.lua")
@@ -103,27 +111,27 @@ function ganger_dom:InitSettings( )
         self.scaling        = prefs.scaling
         self.silence        = prefs.silence
         self.testMode       = prefs.testMode
-
-        if self.testMode then
-	        self.attackCount  = math.max (1,  self.attackCount)
-	        self.warmupTime   = math.min (2,  self.warmupTime)
-	        self.waveTime     = math.min (30, self.waveTime)
-        end
-
-        -- defaults: normal = 1
-        if self.waveStrength == "hard" then
-            self.hpEffective = 1.1
-        elseif self.waveStrength == "brutal" then
-            self.hpEffective = 1.2
-        elseif self.waveStrength == "easy" then -- rilly?
-            -- easter egg
-            self.hpEffective = 1.3
-        end
-        self.hpEffective = self.hpEffective * self.difficultyMult
-        log("Prefs loaded.")
+        self.chaos          = prefs.chaos
     end)
 
-    if not ok then log("No prefs found.") end
+    if not ok then log("No prefs found.")
+    else log("Prefs loaded.") end
+
+    if self.testMode then
+        self.attackCount  = math.max (1,  self.attackCount)
+        self.warmupTime   = math.min (2,  self.warmupTime)
+        self.waveTime     = math.min (30, self.waveTime)
+    end
+
+    -- defaults: normal = 1
+    if self.waveStrength == "brutal" then
+        self.hpEffective = 1.2
+    elseif self.waveStrength == "hard" then
+        self.hpEffective = 1.1
+    elseif self.waveStrength == "easy" then
+        self.hpEffective = .8
+    end
+    self.hpEffective = self.hpEffective * self.difficultyMult
 
 	self:LogSettings()
 end
@@ -146,12 +154,17 @@ function ganger_dom:init()
 GANGSAFE(function()
 
     log("--------------------------------------------------------------------------------")
-    log("ganger_dom_**INIT**() self.data: " .. tostring(self.data))
+    log("ganger_dom:INIT() self: %s self.data: %s", tostring(self), tostring(self.data))
     log("--------------------------------------------------------------------------------")
 	-- self.marked_enemies = setmetatable({}, { __mode = "k" }) -- mode k makes the table weak; if objects in it are gc'd the entry is erased
 
 	self:InitSettings()
+    self:PatchGame()
+
     GANGER_INSTANCE = self
+
+    -- local selfStr = gtools.PrettyPrint( getmetatable(self) )
+    -- log("self:\n%s", selfStr)
 
     -- if pcall(function() 
     --     RegisterGlobalEventHandler("EntityKilledEvent", function(event)
@@ -165,29 +178,30 @@ GANGSAFE(function()
 
     --state machines; each loop independently
 
-    self.actionm    = self:CreateStateMachine()
-    self.buffm      = self:CreateStateMachine()
-    self.ambientm   = self:CreateStateMachine()
-    self.susm       = self:CreateStateMachine()
-    self.alarmm     = self:CreateStateMachine()
+    self.actionm    = self:CreateStateMachine() -- main spawner
+    self.chaosm     = self:CreateStateMachine() -- choatic events
+    self.ambientm   = self:CreateStateMachine() -- ambient sounds
+    self.susm       = self:CreateStateMachine() -- occasional sussurus
+    self.alarmm     = self:CreateStateMachine() -- occasional alarm
 
     self.actionm:AddState("prep",     { enter=  "PrepStart",    exit="PrepEnd"   	}) -- breather without display on screen
     self.actionm:AddState("wait",     { enter=  "WaitStart",    exit="WaitEnd"   	}) -- display on screen with countdown
     self.actionm:AddState("action",   { enter=  "ActionStart", 
-                                        execute="ActionLoop",   interval=self.multiAttackTime, -- action here / spawns, etc
-                                                                exit="ActionEnd" 	}) 
+                                        -- main action here; loop is a loop over the game-provided attack count
+                                        execute="ActionLoop",   interval=self.multiAttackTime,
+                                        exit="ActionEnd" 	}) 
 
-    self.buffm:AddState("buff",   	  { enter=  "BuffStart",    exit="BuffEnd"   	}) -- entity buffer
+    self.chaosm:AddState("chaos",     { enter=  "ChaosStart",   exit="ChaosEnd"   	})
 
-    self.ambientm:AddState("ambient", { enter=  "AmbientStart", exit="AmbientEnd"    }) -- ambient sounds
-    self.susm:AddState("sus",         { enter=  "SusStart",     exit="SusEnd" 	     }) -- sussurus sounds
-    self.alarmm:AddState("alarm",     { enter=  "AlarmStart",   exit="AlarmEnd" 	 }) -- alarm sound
+    self.ambientm:AddState("ambient", { enter=  "AmbientStart", exit="AmbientEnd"   }) 
+    self.susm:AddState("sus",         { enter=  "SusStart",     exit="SusEnd" 	    }) 
+    self.alarmm:AddState("alarm",     { enter=  "AlarmStart",   exit="AlarmEnd" 	}) 
 
 	-- start your engines!
 
 	self.actionm:ChangeState("prep")
     self.ambientm:ChangeState("ambient")
-    self.buffm:ChangeState("buff")
+    self.chaosm:ChangeState("chaos")
 
 end)
 end
@@ -198,7 +212,7 @@ function ganger_dom:OnLoad()
 GANGSAFE(function()
 
     log("--------------------------------------------------------------------------------")
-    log("ganger_dom **ON_LOAD**() data:" .. tostring(self.data))
+    log("ganger_dom:ON_LOAD() data:" .. tostring(self.data))
     log("--------------------------------------------------------------------------------")
     -- RegisterGlobalEventHandler("EntityKilledEvent", function(event)
     --     self:OnEntityKilled(event) end)
@@ -208,6 +222,28 @@ GANGSAFE(function()
 
     self:SanitizeSettings()
     self:LogSettings()
+    self:PatchGame()
+
+    -- local selfStr = gtools.PrettyPrint( getmetatable(self) )
+    -- log("self:\n%s", selfStr)
+
+end)
+end
+------------------------------------------------------------------------------------
+-- Patch Game: runtime patches
+------------------------------------------------------------------------------------
+function ganger_dom:PatchGame()
+GANGSAFE(function()
+
+    local old_mission_fail = dom_mananger.OnRespawnFailedEvent
+
+    dom_mananger.OnRespawnFailedEvent = function(self, evt)
+        log("mission fail preexecute test")
+        local ok = pcall(old_mission_fail, self, evt)
+        if not ok then log("failed to invoke old mission fail")
+        else log("invoked old mission")
+        end
+    end
 
 end)
 end
@@ -274,9 +310,9 @@ GANGSAFE(function()
 
     log("ActionStart")
     self.susm:ChangeState("sus")
-    local spawnPoints = gspawn:PickSpawnPoints( self.spawnPointCount)
+    self.currentSpawnPoints = gspawn:PickSpawnPoints( self.spawnPointCount)
 
-    for _,sp in ipairs( spawnPoints ) do
+    for _,sp in ipairs( self.currentSpawnPoints ) do
 
         local indicatorID = EntityService:SpawnEntity( "effects/messages_and_markers/wave_marker", sp, "no_team" )
 	    local indicatorDuration = 45
@@ -301,10 +337,9 @@ GANGSAFE(function()
     log("ActionLoop() ACTION#: %d", self.actionCount)
     gtools:PlaySoundOnPlayer( "ganger/effects/big_roar" )
     self.alarmm:ChangeState("alarm")
-    gspawn:SpawnWaves( )
+    gspawn:SpawnWaves( self.currentSpawnPoints, self.currentWaveSet, self.attackSize )
     self.actionCount = self.actionCount + 1
     if self.actionCount > self.attackCount then 
-        log("Run exiting due to actions > attackCount %d > %d", self.actionCount, self.attackCount)
         state:Exit()
     end
 
@@ -322,36 +357,81 @@ GANGSAFE(function()
 end)
 end
 ------------------------------------------------------------------------
+-- Chaos machine; spawns little events without warning
+------------------------------------------------------------------------
+function ganger_dom:ChaosStart(state)
+GANGSAFE(function()
+
+    local time_delay = 0
+
+    if self.lastChaosTime then
+        time_delay = self.chaosInterval or 10
+        -- they mostly come out at night, mostly
+        if EnvironmentService:GetLightIntensity() < .3 then
+            time_delay = time_delay / 2
+        end
+    else
+        -- don't start until full warmup of waves /2 to to align out of wave cycle
+        time_delay = self.waveTime/2 + self.warmupTime
+    end
+
+    log("ChaosStart()")
+    state:SetDurationLimit( time_delay )
+
+end)
+end
+------------------------------------------------------------------------
+function ganger_dom:ChaosEnd(state)
+GANGSAFE(function()
+
+    log("ChaosEnd()")
+
+    local chaos = gchaos:MaybeCauseChaos( 1 )
+
+    if (chaos) then
+        self.lastChaosTime = GetLogicTime()
+        -- local eventName = chaos[1]
+        -- local eventQuant = chaos[2]
+        -- log("Chaos event: %s, %.1fd", eventName, eventQuant)
+    else
+        log("No chaos")
+    end
+
+    self.chaosm:ChangeState("chaos")
+
+end)
+end
+------------------------------------------------------------------------
 -- BUFF: Buffs various mobs based on current difficulty
 -- buff won't buff the same mobs twice; this is mainly so that we
 -- don't multiplicatively expload the health of static map mobs
 ------------------------------------------------------------------------
-function ganger_dom:BuffStart(state)
-GANGSAFE(function()
+-- function ganger_dom:BuffStart(state)
+-- GANGSAFE(function()
 
-    --log("BuffStart()")
-    state:SetDurationLimit( self.buffDelay )
+--     --log("BuffStart()")
+--     state:SetDurationLimit( self.buffDelay )
 
-end)
-end
-------------------------------------------------------------------------
-function ganger_dom:BuffEnd(state)
-GANGSAFE(function()
+-- end)
+-- end
+-- ------------------------------------------------------------------------
+-- function ganger_dom:BuffEnd(state)
+-- GANGSAFE(function()
 
-    log("BuffEnd()")
-    if (self.buffList) then
-        while #self.buffList > 0 do
-            local waveName = table.remove(self.buffList, 1)
-            gspawn:BuffEnemiesByWaveName( waveName, self.hpEffective )
-        end
-    end
+--     --log("BuffEnd()")
+--     -- if (self.buffList) then
+--     --     while #self.buffList > 0 do
+--     --         local waveName = table.remove(self.buffList, 1)
+--     --         gspawn:BuffEnemiesByWaveName( waveName, self.hpEffective )
+--     --     end
+--     -- end
 
-	--self:BuffAllMapEnemies()
-    --self:AggroAllMapEnemies()
-    self.buffm:ChangeState("buff")
+-- 	--self:BuffAllMapEnemies()
+--     --self:AggroAllMapEnemies()
+--     self.buffm:ChangeState("buff")
 
-end)
-end
+-- end)
+-- end
 ------------------------------------------------------------------------
 -- AMBIENT; gives this mod a distinct flavor with background roars
 ------------------------------------------------------------------------
@@ -452,9 +532,9 @@ end
 ------------------------------------------------------------------------
 -- Insert waveName into the buff list
 ------------------------------------------------------------------------
-function ganger_dom:InsertBuffList( waveName )
-    table.insert( self.buffList, waveName )
-end
+-- function ganger_dom:InsertBuffList( waveName )
+--     table.insert( self.buffList, waveName )
+-- end
 ------------------------------------------------------------------------
 -- Increase difficulty each full waveset
 ------------------------------------------------------------------------
@@ -481,9 +561,9 @@ function ganger_dom:ProcessDifficultyIncrease(state)
         self.spawnPointCount = self.maxSpawnPointCount
     end
 
-    gwaves:GrowWaveSet( self.wave_set )
+    gwaves:GrowWaveSet( self.currentWaveSet )
     log("DifficultyIncrease(): lvl=%d; hp=%.1f; #sps=%.1f; #attacks=%.1f; attacksz=%.1f",
-        self.hpEffective, self.spawnPointCount, self.attackCount, self.attackSize
+        self.level, self.hpEffective, self.spawnPointCount, self.attackCount, self.attackSize
         )
 
 end
@@ -544,56 +624,5 @@ function ganger_dom:DisplayTimer(seconds, text)
         log("DisplayTimer(): ActivateMissionFlow failed with err: " .. tostring(err))
     end
 end
-
-------------------------------------------------------------------------------------
--- Delete enemy from buffed list
-------------------------------------------------------------------------------------
-
--- function ganger_dom:MaybeDelete( enemy )
---     if not self then
---         log("MaybeDelete: self NIL")
---         return
---     end
---     if not self.buffed_enemies then
---         log("MaybeDelete: buffed enemies NIL")
---         return
---     end
--- 	if self.buffed_enemies[ enemy ] then
---         local teamStr = tostring( EntityService:GetTeam(enemy))
---         --log("MaybeDelete:" .. string.format("entity: %d; team: %s", enemy, teamStr))
---         self.buffed_enemies[ enemy ] = nil
---         self.killed_enemies[ enemy ] = true
---     end
--- end
-
-------------------------------------------------------------------------------------
--- Agro All Map enemies
-------------------------------------------------------------------------------------
-
-function ganger_dom:AggroAllMapEnemies()
-
-	log("AggroAllMapEnemies()")
-    local playerEnt = gtools:GetPlayer()
-    EntityService:ChangeAIGroupsToAggressive(playerEnt, 2000, true)
-
-end
-
-------------------------------------------------------------------------------------
--- Must not let the buff list grow for infinity / DEPRECATED SEE EVENT HANDLER
-------------------------------------------------------------------------------------
-
--- function ganger_dom:CleanUpDeads()
--- 	log("CleanUpDeads() analyzing " .. tostring(Size(self.buffed_enemies)))
--- 	for enemy in Iter ( self.buffed_enemies ) do
---         if self.killed_enemies[enemy] then
---             log("########## Found in killed list: " .. enemy )
---         end 
--- 		if not HealthService:IsAlive (enemy) then
--- 			self.buffed_enemies[enemy] = nil
--- 			log("########## CLEANED DEAD: " .. enemy )
--- 		end
--- 	end
---     --log("CleanUpDeads() complete")
--- end
 
 return ganger_dom

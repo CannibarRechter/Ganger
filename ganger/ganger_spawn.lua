@@ -1,30 +1,53 @@
-local gtools = require("scripts/ganger_tools.lua")
-local log = require("scripts/ganger_logger.lua")
-local gwave = require("scripts/ganger_wave.lua")
-require("scripts/ganger_safe.lua")
+local gtools = require("ganger/ganger_tools.lua")
+local log = require("ganger/ganger_logger.lua")
+local gwave = require("ganger/ganger_wave.lua")
+require("ganger/ganger_safe.lua")
 require("lua/utils/table_utils.lua")
 -------------------------------------------------------------------------
+-- CLASS PLUMBING
+-------------------------------------------------------------------------
 local ganger_spawn = { }
+-- class 'ganger_spawn' ( LuaGraphNode )
+-- function ganger_spawn:__init()
+--     LuaGraphNode.__init(self, self)
+-- end
+-------------------------------------------------------------------------
+-- function ganger_spawn:init()
+-- GANGSAFE(function()
+--     self.spawnPoints = {}
+
+--     log("ganger_spawn:INIT()")
+--     -- local selfStr = gtools.PrettyPrint( self.spawnPoints )
+--     -- log("self:\n%s", selfStr)
+-- end)
+-- end
+-------------------------------------------------------------------------
+-- function ganger_spawn:OnLoad()
+-- GANGSAFE(function()
+--     log("ganger_spawn:LOAD()")
+--     -- local selfStr = gtools.PrettyPrint( self.spawnPoints )
+--     -- log("self:\n%s", selfStr)
+-- end)
+-- end
 -------------------------------------------------------------------------
 -- Spawn Waves: spawns a wave at many spawn points
 -------------------------------------------------------------------------
-function ganger_spawn:SpawnWaves(  )
+function ganger_spawn:SpawnWaves( spawnPoints, currentWaveSet, attackSize )
 
-    log("SPAWN POINTS (%d)", #self.spawnPoints)
-    local dom = GANGER_INSTANCE
+    log("SPAWN POINTS (%d)", #spawnPoints)
 
     -- pseudo unique ID; need to have something to fetch againgst
     -- each time so that we don't inadvertently buff overlapping waves
 
     local waveName = string.format("Ganger:%.1f",GetLogicTime())
-    dom:InsertBuffList( waveName )
+    --dom:InsertBuffList( waveName )
 
     -- at every spawnpoint, spawn a wave
-    for _,spawnPoint in ipairs( self.spawnPoints ) do
+    for _,spawnPoint in ipairs( spawnPoints ) do
         local pos = EntityService:GetPosition( spawnPoint )
         local x, y, z = pos.x, pos.y, pos.z
 
-        local wave = gwave:CreateWave( dom.wave_set, dom.attackSize )
+        local wave = gwave:CreateWave( currentWaveSet, attackSize )
         log("SPAWNPOINT: %d: %d,%d,%d ====> SPAWNING %d blueprint sets", spawnPoint, x, y, z, Size(wave))
 
         --gwave:LogWave( wave )
@@ -49,12 +72,15 @@ function ganger_spawn:SpawnAtSpawnPoint ( blueprint, spawnPoint, waveName, count
     local entities = {}
     for i = 1, count do
 
-        local enemy = EntityService:SpawnEntity( blueprint, spawnPoint, "wave_enemy")
-	    EntityService:SetName( enemy, waveName )
-        UnitService:SetInitialState( enemy, UNIT_AGGRESSIVE)
-        --self:BuffSingleEnemy( enemy, GANGER_INSTANCE.hpEffective )
-        table.insert( entities, enemy )
-
+        if ResourceManager:ResourceExists( "EntityBlueprint", blueprint ) then
+            local enemy = EntityService:SpawnEntity( blueprint, spawnPoint, "wave_enemy")
+            EntityService:SetName( enemy, waveName )
+            UnitService:SetInitialState( enemy, UNIT_AGGRESSIVE)
+            self:BuffSingleEnemy( enemy, GANGER_INSTANCE.hpEffective )
+            table.insert( entities, enemy )
+        else
+            log("#### invalid blueprint %s", blueprint )
+        end
         --local entity = EntityService:SpawnEntity( blueprint, x, y, z, "wave_enemy")
     end
     --log(">>>> created %d %s at spawnpoint", #entities, blueprint)
@@ -99,20 +125,12 @@ end
 ------------------------------------------------------------------------------------
 function ganger_spawn:BuffSingleEnemy( enemy, hpEffective )
 
-    local player = gtools:GetPlayer()
-
     -- protect against case of player in enemy list (more efficient to eliminate here)
-    if ( enemy == player ) then return end 
+    -- is an edge case for when the buff list pulls from the map
 
-    -- prolly not needed; have not seen in logs
-    local healthComponent = EntityService:GetComponent( enemy, "HealthComponent" )
-    local has_hc = true
-    if not healthComponent then
-        has_hc = false
-    end
-    --     log("#### no HealthComponent")
-	-- 	return
-    -- end
+    if ( enemy == gtools:GetPlayer() ) then return end 
+
+    --local healthComponent = EntityService:GetComponent( enemy, "HealthComponent" )
 
 	local health = HealthService:GetHealth(enemy)
 	local max_health = HealthService:GetMaxHealth(enemy)
@@ -126,9 +144,12 @@ function ganger_spawn:BuffSingleEnemy( enemy, hpEffective )
         local after_health = HealthService:GetHealth(enemy)
 	    local after_max_health = HealthService:GetMaxHealth(enemy)
 
-        log("buffed %d (hc=%s): %d/%d (%.2f) --> %d/%d", enemy, tostring(has_hc), health, max_health, hpEffective, after_health, after_max_health)
+        --log("buffed %d: %d/%d (%.2f) --> %d/%d", enemy, health, max_health, hpEffective, after_health, after_max_health)
+        return true
     else
-        log("skipping %d (hc=%s): %d/%d", enemy, tostring(has_hc), health, max_health)
+
+        log("#### skipping %d: %d/%d", enemy,  health, max_health)
+        return false
 	end
 
 end
@@ -137,6 +158,7 @@ end
 ------------------------------------------------------------------------------------
 function ganger_spawn:BuffEnemiesByWaveName( waveName, hpEffective )
     local allGangers = FindService:FindEntitiesByName( waveName )
+    --gtools:InspectObject( allGangers )
     log(">>>> found: %d entities by %s", #allGangers, waveName)
     self:BuffEnemies( allGangers, hpEffective )
 end
@@ -148,8 +170,10 @@ function ganger_spawn:BuffEnemies( enemies, hpEffective )
     local buff_count = 0
 
     for _,enemy in ipairs ( enemies ) do
-		self.BuffSingleEnemy( enemy, hpEffective )
-        buff_count = buff_count + 1
+        --log("buffing " .. k .. ":" .. v)
+		if self:BuffSingleEnemy( enemy, hpEffective ) then
+            buff_count = buff_count + 1
+        end
 	end
 
 	log("BuffEnemies(): buffed enemies count#: %d", buff_count)
