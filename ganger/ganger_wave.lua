@@ -17,7 +17,6 @@ local wave_sets = { -- do not modify at runtime, results will be discarded
         ["blueprints"] = {
             --{ 0.30,  0, "units/ground/gnerot_desert", }, -- bugged in base game
             -- v1:   v2:
-
             { 0.35,  "units/ground/gnerot", },
             { 0.03,  "units/ground/gnerot_alpha", },
             { 0.015, "units/ground/gnerot_ultra", },

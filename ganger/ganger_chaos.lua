@@ -7,10 +7,11 @@ local ganger_chaos = {
     ["total"]         = 0,
     ["events"]        = {
     --    v1: v2:                v3(quant)
-        { 99, "enemy-scatter",   500},
-        { 3,  "kermons-player",  7},
+        { 3, "scatter",         500},
+        { 3,  "assassins",       7},
         { 1,  "wingmites",       32},
         { 1,  "aggro",           0},
+        { 99,  "boss",            1},
     }
 }
 --------------------------------------------------------------------------
@@ -91,32 +92,44 @@ end
 -------------------------------------------------------------------------
 function ganger_chaos:ExecuteEvent( eventName, eventQuant )
 
-    -- don't run aggro until level 5
-    -- if eventName == "aggro" and GANGER_INSTANCE.level and GANGER_INSTANCE.level < 5 then
-    --     eventName = "wingmites"
-    -- end
-
-    if eventName     == "enemy-scatter"   then self:ExecuteEnemyScatter( eventQuant )
-    elseif eventName == "kermons-player"  then self:ExecuteKermonsPlayer( eventQuant )
-    elseif eventName == "wingmites"       then self:ExecuteWingmites( eventQuant )
-    elseif eventName == "aggro"           then self:ExecuteAggro( eventQuant )
+    local method = "Execute" .. eventName:sub(1,1):upper() .. eventName:sub(2):lower()
+    if self[method] then
+        log("chaos:%s()", method)
+        self[method](self, eventName, eventQuant)
+    else
+    log("#### chaos event '%s' unimplemented", eventName )
     end
 
 end
 -------------------------------------------------------------------------
-function ganger_chaos:ExecuteEnemyScatter( eventQuant )
+function ganger_chaos:ExecuteAssassins( eventName, eventQuant )
 
-	log("ExecuteKermonsScatter()")
+    local blueprint = "units/ground/kermon_alpha"
+    local groupName = "Ganger:" .. eventName
+    local spawnDistance = RandInt(11, 17)
+    local ignoreWater = true 
+
+    local player = gtools:GetPlayer()
+    local spawnPoints = UnitService:CreateDynamicSpawnPoints( player, spawnDistance, eventQuant, ignoreWater )
+
+    for _,spawnPoint in ipairs( spawnPoints ) do
+        EntityService:CreateOrSetLifetime( spawnPoint, 30, "normal" )
+        local enemy = gtools:SpawnEnemy( blueprint, spawnPoint, groupName, UNIT_AGGRESSIVE )
+        gtools:BuffSingleEnemy( enemy, GANGER_INSTANCE.hpEffective )
+        log("spawned %d", enemy)
+    end
+
+end
+-------------------------------------------------------------------------
+function ganger_chaos:SpawnAtNearbySpawnPoints( blueprint, groupName, nSpawnPoints, eventQuant )
 
     local admissibleSpawnPoints = gtools:FindAdmissibleInteriorSpawnPoints()
     if not admissibleSpawnPoints then return end
-    local spawnPointsToUse = gtools:DrawDistinctRandomsFromTable(admissibleSpawnPoints, 1)
-    --local blueprint = "units/ground/kermon_alpha"
-    local blueprint = "units/ground/mushbit_ultra"
+    local spawnPointsToUse = gtools:DrawDistinctRandomsFromTable(admissibleSpawnPoints, nSpawnPoints)
 
     for _,spawnPoint in ipairs( spawnPointsToUse) do
         for i = 1, eventQuant do
-            local enemy = gtools:SpawnEnemy( blueprint, spawnPoint, "Ganger:chaos", UNIT_DEFENDER )
+            local enemy = gtools:SpawnEnemy( blueprint, spawnPoint, groupName, UNIT_AGGRESSIVE )
             if enemy then
                 gtools:BuffSingleEnemy( enemy, GANGER_INSTANCE.hpEffective )
             else
@@ -124,39 +137,51 @@ function ganger_chaos:ExecuteEnemyScatter( eventQuant )
             end
         end
     end
-    local foundEntities = FindService:FindEntitiesByNameInRadius( gtools:GetPlayer(), "Ganger:chaos", 2000 )
-    log("scatter spawned %d", #foundEntities)
 end
 -------------------------------------------------------------------------
-function ganger_chaos:ExecuteKermonsPlayer( eventQuant )
+function ganger_chaos:ExecuteScatter( eventName, eventQuant )
+
+    local blueprint = "units/ground/mushbit_ultra"
+    local groupName = "Ganger:" .. eventName
+
+    self:SpawnAtNearbySpawnPoints( blueprint, groupName, 1, eventQuant )
+    -- local foundEntities = FindService:FindEntitiesByNameInRadius( gtools:GetPlayer(), groupName, 2000 )
+    -- log("scatter spawned %d", #foundEntities)
+
+end
+-------------------------------------------------------------------------
+function ganger_chaos:ExecuteWingmites( eventName, eventQuant )
+
+    local blueprint = "units/ground/wingmite_alpha"
+    local groupName = "Ganger:" .. eventName
+
+    self:SpawnAtNearbySpawnPoints( blueprint, groupName, 3, eventQuant )
+    -- local foundEntities = FindService:FindEntitiesByNameInRadius( gtools:GetPlayer(), groupName, 2000 )
+    -- log("scatter spawned %d", #foundEntities)
+
+end
+-------------------------------------------------------------------------
+function ganger_chaos:ExecuteBoss( eventName, eventQuant )
+
+    local blueprint = "units/ground/stregaros_boss_random"
+    local groupName = "Ganger:" .. eventName
 
     local spawnDistance = RandInt(11, 17)
     local ignoreWater = true 
-
-	log("ExecuteKermonsPlayer()")
     local player = gtools:GetPlayer()
     local spawnPoints = UnitService:CreateDynamicSpawnPoints( player, spawnDistance, eventQuant, ignoreWater )
 
     for _,spawnPoint in ipairs( spawnPoints ) do
         EntityService:CreateOrSetLifetime( spawnPoint, 30, "normal" )
-        local enemy = EntityService:SpawnEntity( "units/ground/kermon_alpha", spawnPoint, "wave_enemy")
-        EntityService:SetName( enemy, "Ganger:chaos" )
-        log("spawned %d", enemy)
-        UnitService:SetInitialState( enemy, UNIT_AGGRESSIVE)
+        local enemy = gtools:SpawnEnemy( blueprint, spawnPoint, groupName, UNIT_DEFENDER )
         gtools:BuffSingleEnemy( enemy, GANGER_INSTANCE.hpEffective )
+        log("spawned %d", enemy)
     end
-
-end
--------------------------------------------------------------------------
-function ganger_chaos:ExecuteWingmites( eventQuant )
-
-	log("ExecuteWingmites()")
 
 end
 -------------------------------------------------------------------------
 function ganger_chaos:ExecuteAggro( eventQuant )
 
-	log("ExecuteAggro()")
     local playerEnt = gtools:GetPlayer()
     EntityService:ChangeAIGroupsToAggressive(playerEnt, 2000, true)
 

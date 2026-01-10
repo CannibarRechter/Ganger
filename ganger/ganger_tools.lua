@@ -41,10 +41,13 @@ function ganger_tools:SpawnEnemy( blueprint, spawnPoint, groupName, aggression )
         if aggression == UNIT_AGGRESSIVE then
             enemy = EntityService:SpawnEntity( blueprint, spawnPoint, "wave_enemy")
             UnitService:SetInitialState( enemy, aggression )
-        elseif aggression == UNIT_DEFENDER then
+        elseif aggression == UNIT_DEFENDER then -- this path does not work
             enemy = EntityService:SpawnEntity( blueprint, spawnPoint, "enemy")
-            UnitService:SetInitialState( enemy, UNIT_AGGRESSIVE )
+            UnitService:SetInitialState( enemy, UNIT_DEFENDER )
             UnitService:DefendSpot( enemy, 25, 100 )
+        elseif aggression == UNIT_WANDER then -- this path does not work
+            enemy = EntityService:SpawnEntity( blueprint, spawnPoint, "enemy")
+            UnitService:SetInitialState( enemy, aggression )
         end
         if enemy then EntityService:SetName( enemy, groupName ) end
         return enemy

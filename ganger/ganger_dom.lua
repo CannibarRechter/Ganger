@@ -387,9 +387,10 @@ GANGSAFE(function()
     else self.chaosCount = self.chaosCount + 1 end
     if self.chaosCount > 6 then return end
 
-    local chaos = gchaos:MaybeCauseChaos( 1 )
+    --local chaos = gchaos:MaybeCauseChaos( 1 )
+    gchaos:ExecuteAggro()
 
-    if (chaos) then
+    if (self.chaos) then
         self.lastChaosTime = GetLogicTime()
     end
 
