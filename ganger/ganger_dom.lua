@@ -104,7 +104,7 @@ function ganger_dom:InitSettings( )
     
     --self.buffList = {}
 
-    local ok = GANGSAFE(function()
+    local ok = pcall(function()
         local prefs = require("ganger/ganger_prefs.lua")
         self.maxAttackSize  = prefs.maxAttackSize
         self.difficultyMult = prefs.difficultyMult
@@ -113,7 +113,6 @@ function ganger_dom:InitSettings( )
         self.testMode       = prefs.testMode
         self.chaos          = prefs.chaos
     end)
-
     if not ok then log("No prefs found.")
     else log("Prefs loaded.") end
 
@@ -162,9 +161,6 @@ GANGSAFE(function()
     self:PatchGame()
 
     GANGER_INSTANCE = self
-
-    -- local selfStr = gtools.PrettyPrint( getmetatable(self) )
-    -- log("self:\n%s", selfStr)
 
     -- if pcall(function() 
     --     RegisterGlobalEventHandler("EntityKilledEvent", function(event)
@@ -223,7 +219,19 @@ GANGSAFE(function()
     self:SanitizeSettings()
     self:LogSettings()
     self:PatchGame()
-    gwave:LogWaveSet( self.currentWaveSet )
+
+    -- enable changing preferences on game reload
+    local ok = pcall(function()
+        local prefs = require("ganger/ganger_prefs.lua")
+        self.maxAttackSize  = prefs.maxAttackSize
+        self.silence        = prefs.silence
+        self.chaos          = prefs.chaos
+    end)
+    if not ok then log("No prefs found.")
+    else log("Prefs loaded.") end
+
+    -- gwave:LogWaveSet( self.currentWaveSet )
+
 end)
 end
 ------------------------------------------------------------------------------------
@@ -311,10 +319,10 @@ GANGSAFE(function()
 
     for _,sp in ipairs( self.currentSpawnPoints ) do
 
-        local indicatorID = EntityService:SpawnEntity( "effects/messages_and_markers/wave_marker", sp, "no_team" )
+        local indicator = EntityService:SpawnEntity( "effects/messages_and_markers/wave_marker", sp, "no_team" )
 	    local indicatorDuration = 45
-	    EntityService:CreateLifeTime( indicatorID, indicatorDuration, "normal" )
-	    --EntityService:CreateLifeTime( indicatorID, indicatorDuration, "" )
+	    EntityService:CreateLifeTime( indicator, indicatorDuration, "normal" )
+
     end
 
     local label = string.format("Horde incoming:")
@@ -381,16 +389,13 @@ end
 function ganger_dom:ChaosEnd(state)
 GANGSAFE(function()
 
-    --log("ChaosEnd()")
+    --gchaos:ChaosAggro() -- unreliable
+    -- if not self.chaosCount then self.chaosCount = 0
+    -- else self.chaosCount = self.chaosCount + 1 end
 
-    if not self.chaosCount then self.chaosCount = 0
-    else self.chaosCount = self.chaosCount + 1 end
-    if self.chaosCount > 6 then return end
+    local chaos_caused = gchaos:MaybeCauseChaos( 0 )
 
-    --local chaos = gchaos:MaybeCauseChaos( 1 )
-    gchaos:ExecuteAggro()
-
-    if (self.chaos) then
+    if (chaos_caused) then
         self.lastChaosTime = GetLogicTime()
     end
 

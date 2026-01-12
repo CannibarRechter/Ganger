@@ -112,6 +112,30 @@ sound ganger/sound/ambient_herbivores
 	status				"beta"
 }
 
+sound ganger/sound/ambient_horror
+{
+	random_file
+	{
+		audio_file      sound/samples/horror1.wav
+		audio_file      sound/samples/horror2.wav
+		audio_file      sound/samples/horror3.wav	
+	}
+	
+    gain                1.1
+    looping             0
+    streaming			0
+	
+	freq_ratio_spread	0.2
+
+	group				"ambient"
+    rolloffFactor		6
+    referenceDistance	45
+	
+	description			"various spooky sounds"
+	notes				""
+	status				"beta"
+}
+
 sound ganger/sound/big_roar
 {
 	random_file
@@ -160,7 +184,27 @@ sound ganger/sound/long_rumble
 	notes				""
 	status				"beta"
 }
+sound ganger/sound/minoralert
+{
+	random_file
+	{
+		audio_file      sound/samples/minoralert.wav
+	}
+	
+    gain                0.9
+    looping             0
+    streaming			0
+	
+	freq_ratio_spread	0.2
 
+	group				"player"
+    rolloffFactor		6
+    referenceDistance	45
+	
+	description			"three pulse siren"
+	notes				""
+	status				"beta"
+}
 sound ganger/sound/redalert
 {
 	random_file
@@ -179,6 +223,28 @@ sound ganger/sound/redalert
     referenceDistance	45
 	
 	description			"five pulse siren"
+	notes				""
+	status				"beta"
+}
+
+sound ganger/sound/wingmites
+{
+	random_file
+	{
+		audio_file      sound/samples/wingmites.wav
+	}
+	
+    gain                0.8
+    looping             0
+    streaming			0
+	
+	freq_ratio_spread	0.2
+
+	group				"player"
+    rolloffFactor		6
+    referenceDistance	45
+	
+	description			"metallic flutters"
 	notes				""
 	status				"beta"
 }

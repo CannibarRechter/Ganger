@@ -40,6 +40,7 @@
     "ganger_dom",
     "ganger_spawn",
     "ganger_wave",
-    "survival_base"
+    "survival_base",
+    "survival_desert"
   ]
 }

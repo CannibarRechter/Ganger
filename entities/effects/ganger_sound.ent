@@ -33,6 +33,20 @@ EntityBlueprint
 		effects/default
 	}
 
+	name ganger/effects/ambient_horror
+	
+	SoundDesc
+	{
+		name "ganger/sound/ambient_horror"
+	}
+}
+EntityBlueprint
+{
+	base_blueprints
+	{
+		effects/default
+	}
+
 	name ganger/effects/ambient_herbivores
 	
 	SoundDesc
@@ -52,6 +66,20 @@ EntityBlueprint
 	SoundDesc
 	{
 		name "ganger/sound/big_roar"
+	}
+}
+EntityBlueprint
+{
+	base_blueprints
+	{
+		effects/default
+	}
+
+	name ganger/effects/minoralert
+	
+	SoundDesc
+	{
+		name "ganger/sound/minoralert"
 	}
 }
 EntityBlueprint
@@ -81,5 +109,20 @@ EntityBlueprint
 	SoundDesc
 	{
 		name "ganger/sound/long_rumble"
+	}
+}
+
+EntityBlueprint
+{
+	base_blueprints
+	{
+		effects/default
+	}
+
+	name ganger/effects/wingmites
+	
+	SoundDesc
+	{
+		name "ganger/sound/wingmites"
 	}
 }

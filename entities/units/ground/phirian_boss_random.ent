@@ -1,0 +1,28 @@
+EntityBlueprint
+{
+	name  "units/ground/phirian_boss_random"
+
+	RandomBlueprintDesc
+	{
+		Blueprint
+		{
+			blueprint "units/ground/phirian_boss_acid"
+		}			
+		Blueprint
+		{
+			blueprint "units/ground/phirian_boss_cryo"
+		}	
+		Blueprint
+		{
+			blueprint "units/ground/phirian_boss_energy"
+		}
+		Blueprint
+		{
+			blueprint "units/ground/phirian_boss_fire"
+		}
+		Blueprint
+		{
+			blueprint "units/ground/phirian_boss_physical"
+		}		
+	}
+}

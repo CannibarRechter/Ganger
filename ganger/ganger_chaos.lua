@@ -1,17 +1,18 @@
 local gtools = require("ganger/ganger_tools.lua")
+local gwave = require("ganger/ganger_wave.lua")
 local log = require("ganger/ganger_logger.lua")
 require("ganger/ganger_safe.lua")
-require("lua/utils/table_utils.lua")
 -------------------------------------------------------------------------
 local ganger_chaos = {
     ["total"]         = 0,
     ["events"]        = {
-    --    v1: v2:                v3(quant)
-        { 3, "scatter",         500},
-        { 3,  "assassins",       7},
-        { 1,  "wingmites",       32},
-        { 1,  "aggro",           0},
-        { 99,  "boss",            1},
+    --    v1:  v2:                v3(quant)
+--        {  09,  "miniwave",        50},  -- spawns a small wave of random alphas
+--        {  07,  "assassins",       7},   -- spawns an ambush
+--        {  05,  "wingmites",       32},  -- spawn annoying wingmites
+        {  03, "boss",             1},  -- spawns a boss
+        {  01, "bossspawn",       50},  -- spawns wave on existing bosses
+--      {  01,  "aggro",            0},
     }
 }
 --------------------------------------------------------------------------
@@ -42,8 +43,8 @@ function ganger_chaos:MaybeCauseChaos( probability )
 
     if self.total == 0 then self:Init() end -- ensure probability table
 
-    if RandFloat(0, 1) < probability then
-        return self:CauseChaos()     
+    if math.random(0, 1) < probability then
+        return self:CauseChaos()
     else
         return nil
     end
@@ -52,8 +53,8 @@ end
 -- Cause Chaos: picks events at random to select
 -------------------------------------------------------------------------
 function ganger_chaos:CauseChaos()
-    log("CauseChaos()")
-    self:LogChaos()
+    --log("CauseChaos()")
+    --self:LogChaos()
     local event = self:PickEvent()
 
     if event then
@@ -92,9 +93,9 @@ end
 -------------------------------------------------------------------------
 function ganger_chaos:ExecuteEvent( eventName, eventQuant )
 
-    local method = "Execute" .. eventName:sub(1,1):upper() .. eventName:sub(2):lower()
+    local method = "Chaos" .. eventName:sub(1,1):upper() .. eventName:sub(2):lower()
     if self[method] then
-        log("chaos:%s()", method)
+        --log("%s()", method)
         self[method](self, eventName, eventQuant)
     else
     log("#### chaos event '%s' unimplemented", eventName )
@@ -102,89 +103,221 @@ function ganger_chaos:ExecuteEvent( eventName, eventQuant )
 
 end
 -------------------------------------------------------------------------
-function ganger_chaos:ExecuteAssassins( eventName, eventQuant )
+function ganger_chaos:ChaosAssassins( eventName, eventQuant )
 
     local blueprint = "units/ground/kermon_alpha"
     local groupName = "Ganger:" .. eventName
-    local spawnDistance = RandInt(11, 17)
-    local ignoreWater = true 
 
-    local player = gtools:GetPlayer()
-    local spawnPoints = UnitService:CreateDynamicSpawnPoints( player, spawnDistance, eventQuant, ignoreWater )
+    gtools:SpawnAroundPlayer( blueprint, groupName, eventQuant )
+    gtools:PlaySoundOnPlayer( "ganger/effects/ambient_horror" )
 
-    for _,spawnPoint in ipairs( spawnPoints ) do
-        EntityService:CreateOrSetLifetime( spawnPoint, 30, "normal" )
-        local enemy = gtools:SpawnEnemy( blueprint, spawnPoint, groupName, UNIT_AGGRESSIVE )
-        gtools:BuffSingleEnemy( enemy, GANGER_INSTANCE.hpEffective )
-        log("spawned %d", enemy)
+end
+-------------------------------------------------------------------------
+function ganger_chaos:ChaosMiniwave( eventName, eventQuant )
+
+    local blueprint = gwave:GetRandomBlueprintByPattern( "_alpha" )
+    local groupName = "Ganger:" .. eventName
+
+--[[
+    local previousGangers = FindService:FindEntitiesByName( groupName )
+    log("ChaosMiniwave found previousGangers = %d,", #previousGangers)
+    if #previousGangers > 1000 then
+        log("too many %s; sleeping", groupName)
+        return
+    end
+]]--
+
+    --local spawnPoints = gtools:SpawnAtDynamicSpawnPoints( blueprint, groupName, 1, eventQuant, UNIT_AGGRESSIVE )
+    local spawnPoints = gtools:SpawnAtNearbySpawnPoints( blueprint, groupName, 1, eventQuant, UNIT_DEFENDER )
+
+    for _,spawnPoint in ipairs(spawnPoints) do
+--effects/messages_and_markers/warning_marker_red
+--effects/messages_and_markers/wave_marker_nest
+        local indicator = EntityService:SpawnEntity( "effects/messages_and_markers/wave_marker_nest", spawnPoint, "no_team" )
+	    local indicatorDuration = 10
+	    EntityService:CreateLifeTime( indicator, indicatorDuration, "normal" )
+    end
+end
+-------------------------------------------------------------------------
+local wingmites_waveset = {
+    ["total"] = 0,
+    ["blueprints"] = { -- TODO
+        -- v1:   v2:
+        { 2.00,  "units/ground/wingmite", },
+        { 0.20,  "units/ground/wingmite_alpha", },
+        { 0.10,  "units/ground/wingmite_ultra", },
+        { 0.02,  "units/ground/wingmite_boss", },
+    }
+}
+function ganger_chaos:ChaosWingmites( eventName, eventQuant )
+
+    local groupName = "Ganger:" .. eventName
+
+    gwave:GrowWaveSetToLevel( wingmites_waveset, GANGER_INSTANCE.level )
+
+    local wave = gwave:CreateWave( wingmites_waveset, eventQuant )
+
+    gtools:SpawnAtWaveAtNearbySpawnPoints( wave, groupName, 1 )
+
+    gtools:PlaySoundOnPlayer( "ganger/effects/ambient_horror" )
+
+end
+-------------------------------------------------------------------------
+function ganger_chaos:ChaosBoss( eventName, eventQuant )
+
+    local blueprint = gwave:GetRandomBlueprintByPattern( "_boss" )
+    local groupName = "Ganger:" .. eventName
+
+    local previousGangers = FindService:FindEntitiesByName( groupName )
+    if #previousGangers >= 20 then
+        log("too many %s; sleeping", groupName)
+        return
+    end
+    gtools:PlaySoundOnPlayer( "ganger/effects/minialert" )
+    log("**** BOSS spawning: %s", blueprint)
+    gtools:SpawnAtDynamicSpawnPoints( blueprint, groupName, 1, eventQuant, UNIT_WANDER )
+
+end
+-------------------------------------------------------------------------
+function ganger_chaos:ChaosBossspawn( eventName, eventQuant )
+
+    local groupName = "Ganger:" .. eventName
+    local bosses = FindService:FindEntitiesByName( "Ganger:boss" )
+
+    if bosses and #bosses > 0 then
+        log("ChaosBossspawn found #bosses = %d,", #bosses)
+        gtools:PlaySoundOnPlayer( "ganger/effects/minialert" )
+        for _,boss in ipairs( bosses ) do
+
+            local blueprint = EntityService:GetBlueprintName( boss )
+            local basebp = string.match( blueprint, "units/ground/(.+)_boss" )
+            local ultrabp = "units/ground/" .. basebp .. "_ultra"
+
+            if ultrabp and #ultrabp > 0 then
+                log("spawning wave for boss: %s:%s", blueprint, ultrabp )
+
+                local indicator = EntityService:SpawnEntity( "effects/messages_and_markers/wave_marker_nest", boss, "no_team" )
+                local indicatorDuration = 10
+                EntityService:CreateLifeTime( indicator, indicatorDuration, "normal" )
+
+                gtools:SpawnAtSpawnPoint( ultrabp, boss, groupName, eventQuant, UNIT_AGGRESSIVE )
+            else
+                log("no ultras for %s", blueprint)
+            end
+        end
+    else
+        log("no bosses to spawn waves on")
     end
 
 end
 -------------------------------------------------------------------------
-function ganger_chaos:SpawnAtNearbySpawnPoints( blueprint, groupName, nSpawnPoints, eventQuant )
+function ganger_chaos:ChaosAggro( eventQuant )
 
-    local admissibleSpawnPoints = gtools:FindAdmissibleInteriorSpawnPoints()
-    if not admissibleSpawnPoints then return end
-    local spawnPointsToUse = gtools:DrawDistinctRandomsFromTable(admissibleSpawnPoints, nSpawnPoints)
+    local enemies = gtools:FindAllMapEnemies()
+    local waveTeam = EntityService:GetTeam( "wave_enemy" )
 
-    for _,spawnPoint in ipairs( spawnPointsToUse) do
-        for i = 1, eventQuant do
-            local enemy = gtools:SpawnEnemy( blueprint, spawnPoint, groupName, UNIT_AGGRESSIVE )
-            if enemy then
-                gtools:BuffSingleEnemy( enemy, GANGER_INSTANCE.hpEffective )
-            else
-                log("#### invalid blueprint %s", blueprint )
+    if enemies and #enemies > 100 then
+        gtools:PlaySoundOnPlayer( "ganger/effects/minialert" )
+    end
+
+    log("Aggro found #enemies = %d", #enemies)
+    for _,enemy in pairs ( enemies ) do
+        EntityService:SetTeam( enemy, waveTeam ) -- coordinate together all
+    end
+
+    log("***AGGRO***")
+    EntityService:ChangeAIGroupsToAggressive(gtools:GetPlayer(), 2000, true)
+
+end
+-------------------------------------------------------------------------
+--[[
+function ganger_chaos:ChaosAggroSAVE( eventQuant )
+
+    local player = gtools:GetPlayer()
+    local spawners = gtools:FindAllMapSpawners()
+    local waveTeam = EntityService:GetTeam( "wave_enemy" )
+
+    log("SPAWNERS:")
+    for _,spawner in pairs( spawners ) do
+
+        local spawnerName = EntityService:GetName( spawner )
+        local children = EntityService:GetChildren( spawner, true )
+        if children and #children > 0 then
+            log("spawner = %d:%s", spawner, spawnerName)
+            for _,child in pairs( children ) do
+                local childName = EntityService:GetName( child )
+                log("    child = %d:%s", child, childName)
+                -- if it's not a ganger, tag it ganger touched so we don't keep
+                -- hitting/buffing it
+                -- EntityService:SetTeam( enemy, waveTeam ) -- coordinate together all
+                -- QueueEvent( "UnitAggressiveStateEvent", enemy )
+                -- UnitService:SetInitialState( enemy, UNIT_AGGRESSIVE );
+                -- UnitService:SetUnitState( enemy, UNIT_AGGRESSIVE );
+                -- UnitService:SetCurrentTarget( enemy, "action", player )
+                -- EntityService:SetName( enemy, "Ganger:touched" )       
+                --buff unit TODO
             end
         end
     end
 end
--------------------------------------------------------------------------
-function ganger_chaos:ExecuteScatter( eventName, eventQuant )
+]]--
 
-    local blueprint = "units/ground/mushbit_ultra"
-    local groupName = "Ganger:" .. eventName
+--[[
+function ganger_chaos:ChaosAggroSAVE( eventQuant )
 
-    self:SpawnAtNearbySpawnPoints( blueprint, groupName, 1, eventQuant )
-    -- local foundEntities = FindService:FindEntitiesByNameInRadius( gtools:GetPlayer(), groupName, 2000 )
-    -- log("scatter spawned %d", #foundEntities)
-
-end
--------------------------------------------------------------------------
-function ganger_chaos:ExecuteWingmites( eventName, eventQuant )
-
-    local blueprint = "units/ground/wingmite_alpha"
-    local groupName = "Ganger:" .. eventName
-
-    self:SpawnAtNearbySpawnPoints( blueprint, groupName, 3, eventQuant )
-    -- local foundEntities = FindService:FindEntitiesByNameInRadius( gtools:GetPlayer(), groupName, 2000 )
-    -- log("scatter spawned %d", #foundEntities)
-
-end
--------------------------------------------------------------------------
-function ganger_chaos:ExecuteBoss( eventName, eventQuant )
-
-    local blueprint = "units/ground/stregaros_boss_random"
-    local groupName = "Ganger:" .. eventName
-
-    local spawnDistance = RandInt(11, 17)
-    local ignoreWater = true 
     local player = gtools:GetPlayer()
-    local spawnPoints = UnitService:CreateDynamicSpawnPoints( player, spawnDistance, eventQuant, ignoreWater )
+    local enemies = gtools:FindAllMapEnemies()
 
-    for _,spawnPoint in ipairs( spawnPoints ) do
-        EntityService:CreateOrSetLifetime( spawnPoint, 30, "normal" )
-        local enemy = gtools:SpawnEnemy( blueprint, spawnPoint, groupName, UNIT_DEFENDER )
-        gtools:BuffSingleEnemy( enemy, GANGER_INSTANCE.hpEffective )
-        log("spawned %d", enemy)
+    local countGangers = 0
+    local waveTeam = EntityService:GetTeam( "wave_enemy" )
+
+    for _,enemy in pairs ( enemies ) do
+        EntityService:SetTeam( enemy, waveTeam ) -- coordinate together all
+
+        local enemyName = EntityService:GetName( enemy )
+        if string.find( enemyName, "Ganger") then
+            countGangers = countGangers + 1
+            -- if its a ganger, handle ganger lurk specials;
+            -- all other gangers are on separate logic
+
+            if enemyName == "Ganger:miniwave" then
+                EntityService:SetTeam( enemy, waveTeam ) -- coordinate together all
+			    --QueueEvent( "UnitAggressiveStateEvent", enemy )
+                UnitService:SetInitialState( enemy, UNIT_AGGRESSIVE );
+                UnitService:SetUnitState( enemy, UNIT_AGGRESSIVE );
+                --UnitService:SetCurrentTarget( enemy, "action", player )
+                --UnitService:DefendSpot( enemy, 990, 1000 )
+                --EntityService:SetName( enemy, "Ganger:miniwave:aggro" ) 
+            end
+        else
+
+            -- if it's not a ganger, tag it ganger touched so we don't keep
+            -- hitting/buffing it
+            -- EntityService:SetTeam( enemy, waveTeam ) -- coordinate together all
+			-- QueueEvent( "UnitAggressiveStateEvent", enemy )
+            -- UnitService:SetInitialState( enemy, UNIT_AGGRESSIVE );
+            -- UnitService:SetUnitState( enemy, UNIT_AGGRESSIVE );
+            -- UnitService:SetCurrentTarget( enemy, "action", player )
+            -- EntityService:SetName( enemy, "Ganger:touched" )       
+            --buff unit TODO
+        end
+
     end
 
-end
--------------------------------------------------------------------------
-function ganger_chaos:ExecuteAggro( eventQuant )
+    self.chaoscount = (self.chaoscount or 0) + 1
 
-    local playerEnt = gtools:GetPlayer()
-    EntityService:ChangeAIGroupsToAggressive(playerEnt, 2000, true)
+    if self.chaoscount == 5 then
+        self.chaoscount=0
+        log("***AGGRESSIVE***")
+        EntityService:ChangeAIGroupsToAggressive(player, 2000, true)
+    end
 
+    log("Aggro found %d enemies; %d gangers", #enemies, countGangers)
+    --    if enemy then EntityService:SetName( enemy, groupName ) end
+    -- GetName( unsigned int): string
+
+    --local entities = FindService:FindEntitiesByName("enemy")
 end
+]]--
 -------------------------------------------------------------------------
 return ganger_chaos

@@ -1,6 +1,4 @@
 local log = require("ganger/ganger_logger.lua")
-local enemy_blueprints = require("ganger/ganger_blueprints.lua")
-local enemy_unittypes = require("ganger/ganger_unittypes.lua")
 ------------------------------------------------------------------------------------
 local ganger_tools = {}
 ------------------------------------------------------------------------------------
@@ -41,10 +39,10 @@ function ganger_tools:SpawnEnemy( blueprint, spawnPoint, groupName, aggression )
         if aggression == UNIT_AGGRESSIVE then
             enemy = EntityService:SpawnEntity( blueprint, spawnPoint, "wave_enemy")
             UnitService:SetInitialState( enemy, aggression )
-        elseif aggression == UNIT_DEFENDER then -- this path does not work
+        elseif aggression == UNIT_DEFENDER then 
             enemy = EntityService:SpawnEntity( blueprint, spawnPoint, "enemy")
-            UnitService:SetInitialState( enemy, UNIT_DEFENDER )
-            UnitService:DefendSpot( enemy, 25, 100 )
+            UnitService:SetInitialState( enemy, aggression )
+            UnitService:DefendSpot( enemy, 75, 250 )
         elseif aggression == UNIT_WANDER then -- this path does not work
             enemy = EntityService:SpawnEntity( blueprint, spawnPoint, "enemy")
             UnitService:SetInitialState( enemy, aggression )
@@ -54,7 +52,6 @@ function ganger_tools:SpawnEnemy( blueprint, spawnPoint, groupName, aggression )
     else
         return nil
     end
-    --local entity = EntityService:SpawnEntity( blueprint, x, y, z, "wave_enemy")
 end
 -------------------------------------------------------------------------
 -- Find All Border Spawn Points: returns all spawn points on map edges
@@ -80,34 +77,148 @@ function ganger_tools:FindAdmissibleInteriorSpawnPoints()
 
     local denyEnt = nil
 
-    local hq = FindService:FindEntitiesByType("Headquarters")
+    local hq = FindService:FindEntitiesByType("headquarters")
     if hq and #hq > 0 then
         denyEnt = hq[1]
-        log("using HQ")
+        --log("using HQ")
     else 
         denyEnt = self:GetPlayer()
-        log("using player")
+        --log("using player")
     end
 
     if not denyEnt then return nil end
 
-    local objectives = self:FindAllInteriorSpawnPoints()
-    local admissibleObjectives = {}
+    local interiorSpawnPoints = self:FindAllInteriorSpawnPoints()
+    local admissibleSpawnPoints = {}
 
-    log("scanning %d possible objectives", #objectives)
+    --log("scanning %d possible objectives", #objectives)
     
-    for _,objective in ipairs( objectives ) do
+    for _,objective in ipairs( interiorSpawnPoints ) do
         local denyPos = EntityService:GetPosition( denyEnt )
         local objPos  = EntityService:GetPosition( objective )
         if Distance( denyPos, objPos ) > 300 then
-            table.insert( admissibleObjectives, objective )
+            table.insert( admissibleSpawnPoints, objective )
         end
         --local x, y, z = pos.x, pos.y, pos.z
     end
 
-    log("found %d admissible objectives", #admissibleObjectives)
+    --log("found %d admissible interiorSpawnPoints", #admissibleObjectives)
 
-    return admissibleObjectives
+    return admissibleSpawnPoints
+
+end
+-------------------------------------------------------------------------
+-- Spawns AROUND admissable interior spawn points (spread out)
+-------------------------------------------------------------------------
+function ganger_tools:SpawnAtDynamicSpawnPoints( blueprint, groupName, nSpawnPoints, eventQuant, aggression, maxDistance )
+    aggression = aggression or UNIT_AGGRESSIVE
+    maxDistance = maxDistance or 17
+
+    local admissibleSpawnPoints = self:FindAdmissibleInteriorSpawnPoints()
+    if not admissibleSpawnPoints then return end
+    local spawnPointsToUse = self:DrawDistinctRandomsFromTable(admissibleSpawnPoints, nSpawnPoints)
+    --log("using %d spawn points", #spawnPointsToUse)
+
+    for _,spawnPoint in ipairs( spawnPointsToUse) do
+        --log("spawnpoint %d", spawnPoint)
+        local ignoreWater = true 
+        local dynPoints = UnitService:CreateDynamicSpawnPoints( spawnPoint, maxDistance, eventQuant, ignoreWater )
+
+        for _,dynPoint in ipairs( dynPoints ) do
+            EntityService:CreateOrSetLifetime( dynPoint, 30, "normal" )
+            local enemy = self:SpawnEnemy( blueprint, dynPoint, groupName, aggression )
+            self:BuffSingleEnemy( enemy, GANGER_INSTANCE.hpEffective )
+            --log("spawned %d", enemy)
+        end
+
+    end
+    return spawnPointsToUse
+end
+------------------------------------------------------------------------
+-- Spawns on randomized interior spawn points, away from base
+-------------------------------------------------------------------------
+function ganger_tools:SpawnAtNearbySpawnPoints( blueprint, groupName, nSpawnPoints, eventQuant, aggression )
+    aggression = aggression or UNIT_AGGRESSIVE
+
+    local admissibleSpawnPoints = self:FindAdmissibleInteriorSpawnPoints()
+    if not admissibleSpawnPoints then return end
+    local spawnPointsToUse = self:DrawDistinctRandomsFromTable(admissibleSpawnPoints, nSpawnPoints)
+
+    --log("using %d spawn points", #spawnPointsToUse)
+
+    for _,spawnPoint in ipairs( spawnPointsToUse) do
+        --log("of #%d, using spawnpoint %d", #spawnPointsToUse, spawnPoint)
+        for i = 1, eventQuant do
+            local enemy = self:SpawnEnemy( blueprint, spawnPoint, groupName, aggression )
+            if enemy then
+                self:BuffSingleEnemy( enemy, GANGER_INSTANCE.hpEffective )
+            else
+                log("#### invalid blueprint %s", blueprint )
+            end
+        end
+    end
+   return spawnPointsToUse
+end
+------------------------------------------------------------------------
+-- Spawns a full wave at nearby spawnpoints
+-------------------------------------------------------------------------
+function ganger_tools:SpawnAtWaveAtNearbySpawnPoints( wave, groupName, nSpawnPoints )
+    --aggression = aggression or UNIT_AGGRESSIVE
+
+    local admissibleSpawnPoints = self:FindAdmissibleInteriorSpawnPoints()
+    if not admissibleSpawnPoints then return end
+    local spawnPointsToUse = self:DrawDistinctRandomsFromTable(admissibleSpawnPoints, nSpawnPoints)
+
+    --log("using %d spawn points", #spawnPointsToUse)
+
+    for _,spawnPoint in ipairs( spawnPointsToUse) do
+        --log("of #%d, using spawnpoint %d", #spawnPointsToUse, spawnPoint)
+        for blueprint, n in pairs ( wave ) do
+            for _ = 1, n do
+                local enemy = self:SpawnEnemy( blueprint, spawnPoint, groupName, UNIT_AGGRESSIVE )
+                if enemy then
+                    self:BuffSingleEnemy( enemy, GANGER_INSTANCE.hpEffective )
+                else
+                    log("#### invalid blueprint %s", blueprint )
+                end
+            end
+        end
+    end
+   return spawnPointsToUse
+end
+------------------------------------------------------------------------
+-- Spawns on randomized interior spawn points, away from base
+-------------------------------------------------------------------------
+function ganger_tools:SpawnAtSpawnPoint( blueprint, spawnPoint, groupName, eventQuant, aggression )
+    aggression = aggression or UNIT_AGGRESSIVE
+
+    for i = 1, eventQuant do
+        local enemy = self:SpawnEnemy( blueprint, spawnPoint, groupName, aggression )
+        if enemy then
+            self:BuffSingleEnemy( enemy, GANGER_INSTANCE.hpEffective )
+        else
+            log("#### invalid blueprint %s", blueprint )
+        end
+    end
+
+end
+-------------------------------------------------------------------------
+-- Spawn Around Player
+-------------------------------------------------------------------------
+function ganger_tools:SpawnAroundPlayer( blueprint, groupName, n )
+    n = n or 1
+
+    local spawnDistance = RandInt(7, 13)
+    local ignoreWater = true 
+    local player = self:GetPlayer()
+    local spawnPoints = UnitService:CreateDynamicSpawnPoints( player, spawnDistance, n, ignoreWater )
+
+    for _,spawnPoint in ipairs( spawnPoints ) do
+        EntityService:CreateOrSetLifetime( spawnPoint, 30, "normal" )
+        local enemy = self:SpawnEnemy( blueprint, spawnPoint, groupName, UNIT_AGGRESSIVE )
+        self:BuffSingleEnemy( enemy, GANGER_INSTANCE.hpEffective )
+        --log("spawned %d", enemy)
+    end
 
 end
 -------------------------------------------------------------------------
@@ -135,7 +246,7 @@ function ganger_tools:DrawDistinctRandomsFromTable(table, count)
         copy[i] = table[i]
     end
     
-    n = math.min(n, #copy)
+    n = math.min(n, #copy) -- overdraw protection
     
     -- shuffle
     for i = 1, n do
@@ -201,6 +312,72 @@ function ganger_tools:BuffSingleEnemy( enemy, hpEffective )
 	end
 
 end
+------------------------------------------------------------------------------------
+-- Find all map enemies 
+------------------------------------------------------------------------------------
+function ganger_tools:FindAllMapEnemies()
+
+    local player = self:GetPlayer()
+    local enemies = {}
+
+	local enemies_by_type = FindService:FindEntitiesByType("ground_unit")
+	Concat( enemies, enemies_by_type )
+
+    -- remove the player (they are a ground unit)
+    for i = 1, #enemies do
+        if enemies[i] == player then
+            table.remove(enemies, i)
+            break
+        end
+    end
+	return enemies
+    -- SAVE FOR DEBUGGING
+    -- local enemiesKVP = {}
+    -- --local cull_count = 0
+    -- for _,enemy in ipairs ( enemies ) do
+    --     local bp_name = EntityService:GetBlueprintName( enemy )
+    --     if not enemiesKVP[ bp_name ] then
+    --         enemiesKVP[ bp_name ] = 1
+    --     else
+    --         enemiesKVP[ bp_name ] = enemiesKVP[ bp_name] +1
+    --     end
+    -- end
+end
+------------------------------------------------------------------------------------
+-- Find all map spawners
+------------------------------------------------------------------------------------
+local spawner_blueprints = {
+    "units/spawner/volume_boss_units_spawner",
+    "units/spawner/volume_regular_units_spawner",
+    "units/spawner/volume_resources_units_spawner",
+--    "units/spawner/volume_resources_units_spawner",
+}
+------------------------------------------------------------------------------------
+function ganger_tools:FindAllMapSpawners()
+
+    local spawners = {}
+
+    for _,blueprint in ipairs( spawner_blueprints ) do
+        local spawnersByBlueprint = FindService:FindEntitiesByBlueprint( blueprint )
+	    Concat( spawners, spawnersByBlueprint )
+    end
+
+    log("found #spawners %d", #spawners)
+
+    return spawners
+end
+------------------------------------------------------------------------------------
+-- function ganger_tools:LoadCdata (key)
+--     local cd = CampaignService and CampaignService:GetCampaignData()
+-- 	if not cd then return 0 end
+--     return cd:GetIntOrDefault(key, 0)
+-- end
+
+-- function ganger_tools:StoreCdata (key, value)
+--     local cd = CampaignService and CampaignService:GetCampaignData()
+-- 	if not cd then return end
+--     cd:SetInt(key, value)
+-- end
 ------------------------------------------------------------------------------------
 -- Send a LUA object to be printed
 ------------------------------------------------------------------------------------
@@ -292,152 +469,5 @@ function ganger_tools:PrettyPrintToStr(tbl, indent)
     
     return table.concat(result)
 end
-------------------------------------------------------------------------------------
--- Find all map enemies (probably obsolete)
-------------------------------------------------------------------------------------
-function ganger_tools:FindAllMapEnemies()
-
-    --local playable_min,playable_max = get_player_pos()
-	-- local playable_min = MissionService:GetPlayableRegionMin()
-	-- local playable_max = MissionService:GetPlayableRegionMax()
-
-	-- local enemies = { }
-
-	-- for _,bp in ipairs (enemy_blueprints) do
-	-- 	local enemies_by_bp = FindService:FindEntitiesByBlueprintInBox( bp, playable_min, playable_max)
-	-- 	Concat( enemies, enemies_by_bp )
-	-- end
-    -- log("FindAllMapEnemies(by bp)#####: " .. tostring(Size(enemies or {})))
-
-    -- local counted_bps = { }
-    -- for _, enemy in ipairs ( enemies ) do
-    --     if not counted_bps[ enemy ] then
-    --         local bp_name = EntityService:GetBlueprintName( enemy )
-    --         if not counted_bps[ bp_name ] then
-    --             counted_bps[ bp_name ] = 1
-    --         else
-    --             counted_bps[ bp_name ] = counted_bps[ bp_name] +1
-    --         end
-    --     end
-    -- end
-
-    -- log("First BPs: ")
-    -- for bp, count in pairs(counted_bps) do
-    --     log("    %s: %d", bp, count)
-    -- end
-
- 	-- temp alt
-    -- local alt_enemies = FindService:FindEntitiesByTeamInBox("enemy", {playable_min, playable_max})
-    -- if alt_enemies then
-    --     log("FindAllMapEnemies(alt)#####: " .. tostring(Size(alt_enemies)))
-    -- end
-    
-    local enemies = {}
-	for _,unittype in ipairs ( enemy_unittypes ) do
-		local enemies_by_type = FindService:FindEntitiesByType(unittype)
-		Concat( enemies, enemies_by_type )
-	end
-    log("FindAllMapEnemies(by type)#####: " .. tostring(#enemies))
-
-    local enemiesKVP = {}
-    --local cull_count = 0
-    for _,enemy in ipairs ( enemies ) do
-        local bp_name = EntityService:GetBlueprintName( enemy )
-        --log("enemy %s: %d", bp_name, enemy)
-        if not enemiesKVP[ bp_name ] then
-            enemiesKVP[ bp_name ] = 1
-        else
-            enemiesKVP[ bp_name ] = enemiesKVP[ bp_name] +1
-        end      
-        -- local teamStruct = EntityService:GetTeam( enemy )
-
-        -- if teamStruct then
-        --     log("typeof teamstruct: %s", tostring(type(teamStruct)))
-        --     local json = require("scripts/dkjson.lua")
-        --     local teamStr = json:encode( teamStruct )
-        --     local InspectObject = require("ganger/ganger_inspector.lua")
-        --     InspectObject( teamStruct )
-        --     log("teamstruct %s", teamStr)
-        --     -- if teamStruct.team == "neutral" then      
-        --     -- -- if not EntityService:IsInTeamRelation(self:GetPlayer(), enemy, "hostility") then
-        --     --     local bp_name = EntityService:GetBlueprintName( enemy )
-        --     --     log(string.format("### Removing enemy %s: %d", bp_name, enemy))
-        --     --     cull_count = cull_count + 1
-        --     --     Remove ( enemies, enemy )
-        --     -- else
-        --     --     log("not removing >>> %s: %s", bp_name, teamStruct.team)
-        --     -- end
-        -- else
-        --     log("not removing %s: (nil)", bp_name)
-        -- end
-    end
-
-    --log("FindAllMapEnemies culled: %d ", cull_count)
-    log("Enemies by type: ")
-    for bp, count in pairs(enemiesKVP) do
-        log("    %s: %d", bp, count)
-    end
-
-    -- local alt_enemies_kvp = {}
-    -- for _,eid in ipairs (alt_enemies) do
-    --     alt_enemies_kvp[ eid ] = true
-    -- end
-
-    -- -- reconcile check (Debug)
-    -- local missing_bps = {}
-    -- for _,enemy in ipairs (enemies) do
-    --     if not alt_enemies_kvp[ enemy ] then
-    --         local bp_name = EntityService:GetBlueprintName( enemy )
-    --         if not missing_bps[ bp_name ] then
-    --             missing_bps[ bp_name ] = 1
-    --         else
-    --             missing_bps[ bp_name ] = missing_bps[ bp_name] +1
-    --         end
-    --     end
-    -- end
-
-    -- log("Missing BPs: ")
-    -- for bp, count in pairs(missing_bps) do
-    --     log("    %s: %d", bp, count)
-    -- end
-
-	return enemies
-end
-
--- local ep = require("lua/entity_patcher.lua")
--- function ganger_tools:BuffAllBlueprints( )
---     local patch = {
---         "units/ground/mushbit",
---         "units/ground/mushbit_alpha",
---         "units/ground/mushbit_ultra",
---     }
-
---     local map = {
---         ["HealthDesc"] = {
---             ["health*"] = 20
---         },
---         ["HealthComponent"] = {
---             ["health*"] = 20
---         }
---     }
-
---     ep:Apply( patch, map )
--- end
-
--- function ganger_tools:LoadCdata (key)
---     local cd = CampaignService and CampaignService:GetCampaignData()
--- 	if not cd then return 0 end
---     return cd:GetIntOrDefault(key, 0)
--- end
-
--- function ganger_tools:StoreCdata (key, value)
---     local cd = CampaignService and CampaignService:GetCampaignData()
--- 	if not cd then return end
---     cd:SetInt(key, value)
--- end
-
--- function ganger_tools:ToJson (obj)
---     return json.encode(obj)
--- end
 ------------------------------------------------------------------------------------
 return ganger_tools

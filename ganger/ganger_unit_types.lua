@@ -2,8 +2,8 @@
 -- Single file for all unit types of interest
 -------------------------------------------------------------------------
 
-local enemy_unittypes = {
-"air_unit",
+local enemy_unit_types = {
+--"air_unit", -- all air units = neutral except for drones, which we don't want
 "ground_unit",
 -- "ground_unit|ground_unit_large",
 -- "ground_unit|ground_unit_large|spawner",
@@ -14,4 +14,4 @@ local enemy_unittypes = {
 -- "ground_unit_artillery|ground_unit|ground_unit_medium",
 }
 
-return enemy_unittypes
+return enemy_unit_types

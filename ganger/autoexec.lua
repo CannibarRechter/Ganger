@@ -8,8 +8,11 @@ local function PatchGame()
 
     -- check this because it is at autoexec time ONLOAD
     -- also: no need to add the game rule during load anyway
-
-    if survival_base == nil then return end
+    log("Patching base game")
+    if survival_base == nil then
+        log("No 'survival_base'. If this is savegame load, it is expected.")
+        return
+    end
 
     -- hook load and add game rules
 
@@ -30,7 +33,7 @@ local function PatchGame()
             if not ok then
                 log("#### Failed to patch Ganger with error %s", tostring(err))
             else
-                log("PATCHED.")
+                log("EXOR survival_base.init called after patch.")
             end
         end
     end
@@ -48,10 +51,9 @@ local function ganger_autoexec()
     --local difficulty = DifficultyService:GetDifficulty()
     log("--------------------------------------------------------------------------------")
     log("GANGER AUTOEXEC")
-    log("mission: %s; biom: %s; main mission: %s", mission, biome, isMain )
-    log("--------------------------------------------------------------------------------")
-
+    log("mission: %s; biome: %s; main mission: %s", mission, biome, isMain )
     PatchGame()
+    log("--------------------------------------------------------------------------------")
 
 end
 

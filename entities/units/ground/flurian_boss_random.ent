@@ -1,0 +1,16 @@
+EntityBlueprint
+{
+	name  "units/ground/flurian_boss_random"
+
+	RandomBlueprintDesc
+	{	
+		Blueprint
+		{
+			blueprint "units/ground/flurian_boss_energy"
+		}
+		Blueprint
+		{
+			blueprint "units/ground/flurian_boss_physical"
+		}		
+	}
+}

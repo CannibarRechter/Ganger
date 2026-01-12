@@ -8,44 +8,39 @@ local ganger_wave = { }
 -------------------------------------------------------------------------
 -- Ganger wave sets (weighted compositions by biome)
 -------------------------------------------------------------------------
-local wave_sets = { -- do not modify at runtime, results will be discarded
+local wave_sets = require("ganger/ganger_wave_sets.lua")
 -------------------------------------------------------------------------
--- DESERT
+-- Get Blueprint by Pattern (caches first requests); can use "*" to get them
+-- all, and they will be cached under an all entry
 -------------------------------------------------------------------------
-    ["desert"] = {
-        ["total"] = 0,
-        ["blueprints"] = {
-            --{ 0.30,  0, "units/ground/gnerot_desert", }, -- bugged in base game
-            -- v1:   v2:
-            { 0.35,  "units/ground/gnerot", },
-            { 0.03,  "units/ground/gnerot_alpha", },
-            { 0.015, "units/ground/gnerot_ultra", },
-            { 0.003, "units/ground/gnerot_boss_random", },
+local function MatchBluePrints( blueprints, pattern ) -- internal only
+    local result = {}
+    for _, blueprint in ipairs( blueprints ) do
+        if pattern == "*" or string.find( blueprint[2], pattern) then
+            table.insert( result, blueprint[2] )
+        end
+    end
+    return result
+end
+function ganger_wave:GetRandomBlueprintByPattern( pattern, biome )
+    biome = biome or MissionService:GetCurrentBiomeName()
+    local blueprints = self:GetBlueprintsByPattern( pattern, biome )
+    if not blueprints or #blueprints == 0 then return nil end
+    local random = math.random(1, #blueprints)
+    log("GetRandomBlueprintByPattern: %s --> %s", pattern, blueprints[random])
+    return blueprints[random]
+end
+function ganger_wave:GetBlueprintsByPattern( pattern, biome )
+    biome = biome or MissionService:GetCurrentBiomeName()
+    wave_sets[biome].cache = wave_sets[biome].cache or {}
 
-            { 0.50,  "units/ground/kermon", },
-            { 0.05,  "units/ground/kermon_alpha", },
-            { 0.025, "units/ground/kermon_ultra", },
-
-            { 0.75,  "units/ground/lesigian", },
-            { 0.075, "units/ground/lesigian_alpha", },
-            { 0.038, "units/ground/lesigian_ultra", },
-            { 0.007, "units/ground/lesigian_boss", },
-
-            { 3.00,  "units/ground/mushbit", },
-            { 0.30,  "units/ground/mushbit_alpha", },
-            { 0.15,  "units/ground/mushbit_ultra", },
-
-            { 2.00,  "units/ground/stregaros", },
-            { 0.20,  "units/ground/stregaros_alpha", },
-            { 0.10,  "units/ground/stregaros_ultra", },
-            { 0.02,  "units/ground/stregaros_boss_random", },
-
-            { 1.50,  "units/ground/zorant", },
-            { 0.15,  "units/ground/zorant_alpha", },
-            { 0.08,  "units/ground/zorant_ultra", },
-        }
-    }
-}
+    -- ensure cache is present
+    if not wave_sets[biome].cache[pattern] then
+        wave_sets[biome].cache[pattern] = MatchBluePrints( wave_sets[biome].blueprints, pattern )
+    end
+    
+    return wave_sets[biome].cache[pattern]
+end
 -------------------------------------------------------------------------
 -- Get an initialized Wave Set (defaults to current biome)
 -------------------------------------------------------------------------
@@ -107,6 +102,33 @@ function ganger_wave:GrowWaveSet( wave_set )
 
     self:LogWaveSet( wave_set )
 
+end
+function ganger_wave:GrowGetWaveSetToLevel( wave_set, level )
+
+    local growth_boss     = .001 * level
+    local growth_ultra    = .008 * level
+    local growth_alpha    = .016 * level
+    local decay_standard  = .1   * level
+
+    local to_remove = {}
+    for i,v in ipairs( wave_set.blueprints ) do
+        if     string.find(v[2], "_boss") then        v[1] = v[1] + growth_boss
+        elseif string.find(v[2], "canceroth") then    v[1] = v[1] + growth_boss
+        elseif string.find(v[2], "_ultra") then       v[1] = v[1] + growth_ultra
+        elseif string.find(v[2], "_alpha") then       v[1] = v[1] + growth_alpha
+        else -- did not contain any of the above -- standard mob
+            v[1] = v[1] - decay_standard
+            if v[1] <= 0 then table.insert( to_remove, i ) end
+        end
+    end
+
+    for i = #to_remove, 1, -1 do
+        table.remove( wave_set.blueprints, to_remove[i])
+    end
+
+    self:InitWaveSet( wave_set ) -- reaccumulate
+
+    self:LogWaveSet( wave_set )
 end
 -------------------------------------------------------------------------
 -- Pick Enemy: picks a single enemy from table

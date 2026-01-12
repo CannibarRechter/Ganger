@@ -33,7 +33,7 @@ function survival_desert:init()
     local rulesPath = GetRulesForDifficulty( "lua/missions/survival/v2/dom_survival_desert_rules_" )
 
 	MissionService:AddGameRule( "lua/missions/v2/dom_manager.lua", rulesPath )
-    --MissionService:AddGameRule( "ganger/ganger_dom.lua", "unused" )	
+    MissionService:AddGameRule( "ganger/ganger_dom.lua", "unused" )	
 
 end
 
