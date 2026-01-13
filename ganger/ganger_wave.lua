@@ -103,7 +103,7 @@ function ganger_wave:GrowWaveSet( wave_set )
     self:LogWaveSet( wave_set )
 
 end
-function ganger_wave:GrowGetWaveSetToLevel( wave_set, level )
+function ganger_wave:GrowWaveSetToLevel( wave_set, level )
 
     local growth_boss     = .001 * level
     local growth_ultra    = .008 * level

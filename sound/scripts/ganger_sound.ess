@@ -93,8 +93,7 @@ sound ganger/sound/ambient_herbivores
 		//audio_file      sound/samples/bleat9.wav
 		audio_file      sound/samples/bleat10.wav
 		audio_file      sound/samples/bleat11.wav
-		audio_file      sound/samples/bleat12.wav
-		audio_file      sound/samples/rumble.wav		
+		audio_file      sound/samples/bleat12.wav	
 	}
 	
     gain                0.7
@@ -181,6 +180,28 @@ sound ganger/sound/long_rumble
     referenceDistance	45
 	
 	description			"long rumble"
+	notes				""
+	status				"beta"
+}
+
+sound ganger/sound/short_rumble
+{
+	random_file
+	{
+		audio_file      sound/samples/short_rumble.wav
+	}
+	
+    gain                1.2
+    looping             0
+    streaming			0
+	
+	freq_ratio_spread	0.2
+
+	group				"player"
+    rolloffFactor		6
+    referenceDistance	45
+	
+	description			"short rumble"
 	notes				""
 	status				"beta"
 }

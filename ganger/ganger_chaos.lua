@@ -7,11 +7,12 @@ local ganger_chaos = {
     ["total"]         = 0,
     ["events"]        = {
     --    v1:  v2:                v3(quant)
+        {  09,  "dwellers",        50},  -- spawns a small wave of random alphas
 --        {  09,  "miniwave",        50},  -- spawns a small wave of random alphas
 --        {  07,  "assassins",       7},   -- spawns an ambush
 --        {  05,  "wingmites",       32},  -- spawn annoying wingmites
-        {  03, "boss",             1},  -- spawns a boss
-        {  01, "bossspawn",       50},  -- spawns wave on existing bosses
+--        {  03, "boss",             1},  -- spawns a boss
+--        {  01, "bossspawn",       50},  -- spawns wave on existing bosses
 --      {  01,  "aggro",            0},
     }
 }
@@ -113,11 +114,11 @@ function ganger_chaos:ChaosAssassins( eventName, eventQuant )
 
 end
 -------------------------------------------------------------------------
-function ganger_chaos:ChaosMiniwave( eventName, eventQuant )
+function ganger_chaos:ChaosDwellers( eventName, eventQuant )
 
     local blueprint = gwave:GetRandomBlueprintByPattern( "_alpha" )
     local groupName = "Ganger:" .. eventName
-
+    log("ChaosDwellers: %s", tostring(UNIT_DEFENDER))
 --[[
     local previousGangers = FindService:FindEntitiesByName( groupName )
     log("ChaosMiniwave found previousGangers = %d,", #previousGangers)
@@ -127,9 +128,24 @@ function ganger_chaos:ChaosMiniwave( eventName, eventQuant )
     end
 ]]--
 
-    --local spawnPoints = gtools:SpawnAtDynamicSpawnPoints( blueprint, groupName, 1, eventQuant, UNIT_AGGRESSIVE )
-    local spawnPoints = gtools:SpawnAtNearbySpawnPoints( blueprint, groupName, 1, eventQuant, UNIT_DEFENDER )
+    local spawnPoints = gtools:SpawnAtDynamicSpawnPoints( blueprint, groupName, 1, eventQuant, UNIT_DEFENDER )
+    gtools:PlaySoundOnPlayer( "ganger/effects/short_rumble" )
+    for _,spawnPoint in ipairs(spawnPoints) do
+--effects/messages_and_markers/warning_marker_red
+--effects/messages_and_markers/wave_marker_nest
+        local indicator = EntityService:SpawnEntity( "effects/messages_and_markers/wave_marker_nest", spawnPoint, "no_team" )
+	    local indicatorDuration = 10
+	    EntityService:CreateLifeTime( indicator, indicatorDuration, "normal" )
+    end
+end
+-------------------------------------------------------------------------
+function ganger_chaos:ChaosMiniwave( eventName, eventQuant )
 
+    local blueprint = gwave:GetRandomBlueprintByPattern( "_alpha" )
+    local groupName = "Ganger:" .. eventName
+
+    local spawnPoints = gtools:SpawnAtNearbySpawnPoints( blueprint, groupName, 1, eventQuant, UNIT_AGGRESSIVE )
+        gtools:PlaySoundOnPlayer( "ganger/effects/minialert" )
     for _,spawnPoint in ipairs(spawnPoints) do
 --effects/messages_and_markers/warning_marker_red
 --effects/messages_and_markers/wave_marker_nest
@@ -141,7 +157,7 @@ end
 -------------------------------------------------------------------------
 local wingmites_waveset = {
     ["total"] = 0,
-    ["blueprints"] = { -- TODO
+    ["blueprints"] = {
         -- v1:   v2:
         { 2.00,  "units/ground/wingmite", },
         { 0.20,  "units/ground/wingmite_alpha", },
@@ -157,9 +173,14 @@ function ganger_chaos:ChaosWingmites( eventName, eventQuant )
 
     local wave = gwave:CreateWave( wingmites_waveset, eventQuant )
 
-    gtools:SpawnAtWaveAtNearbySpawnPoints( wave, groupName, 1 )
+    log("spawning wave:")
+    for blueprint, count in pairs( wave ) do
+        log("%s: %d", blueprint, count)
+    end
 
-    gtools:PlaySoundOnPlayer( "ganger/effects/ambient_horror" )
+    gtools:SpawnWaveAtNearbySpawnPoints( wave, groupName, 1 )
+
+    gtools:PlaySoundOnPlayer( "ganger/effects/wingmites" )
 
 end
 -------------------------------------------------------------------------

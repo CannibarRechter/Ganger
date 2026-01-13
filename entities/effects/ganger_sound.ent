@@ -119,6 +119,21 @@ EntityBlueprint
 		effects/default
 	}
 
+	name ganger/effects/short_rumble
+	
+	SoundDesc
+	{
+		name "ganger/sound/short_rumble"
+	}
+}
+
+EntityBlueprint
+{
+	base_blueprints
+	{
+		effects/default
+	}
+
 	name ganger/effects/wingmites
 	
 	SoundDesc

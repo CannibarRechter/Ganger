@@ -40,9 +40,9 @@ function ganger_tools:SpawnEnemy( blueprint, spawnPoint, groupName, aggression )
             enemy = EntityService:SpawnEntity( blueprint, spawnPoint, "wave_enemy")
             UnitService:SetInitialState( enemy, aggression )
         elseif aggression == UNIT_DEFENDER then 
-            enemy = EntityService:SpawnEntity( blueprint, spawnPoint, "enemy")
+            enemy = EntityService:SpawnEntity( blueprint, spawnPoint, "wave_enemy")
             UnitService:SetInitialState( enemy, aggression )
-            UnitService:DefendSpot( enemy, 75, 250 )
+            --UnitService:DefendSpot( enemy, 75, 250 )
         elseif aggression == UNIT_WANDER then -- this path does not work
             enemy = EntityService:SpawnEntity( blueprint, spawnPoint, "enemy")
             UnitService:SetInitialState( enemy, aggression )
@@ -162,7 +162,7 @@ end
 ------------------------------------------------------------------------
 -- Spawns a full wave at nearby spawnpoints
 -------------------------------------------------------------------------
-function ganger_tools:SpawnAtWaveAtNearbySpawnPoints( wave, groupName, nSpawnPoints )
+function ganger_tools:SpawnWaveAtNearbySpawnPoints( wave, groupName, nSpawnPoints )
     --aggression = aggression or UNIT_AGGRESSIVE
 
     local admissibleSpawnPoints = self:FindAdmissibleInteriorSpawnPoints()
