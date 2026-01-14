@@ -6,14 +6,15 @@ local ganger_tools = {}
 ------------------------------------------------------------------------------------
 function ganger_tools:PlaySoundOnPlayer( sound )
 
-    if (GANGER_INSTANCE.silence)then
-        --log("sound off for %s", sound)
+    if (GANGER_INSTANCE.silence)then return end
+    if not EntityService:IsBlueprintExist( sound ) then
+        log("#### invalid sound blueprint: %s", sound)
         return
     end
 
-    local playerEnt = ganger_tools:GetPlayer()
+    local player = ganger_tools:GetPlayer()
     local ok, err = pcall(function()
-        local entity = EntityService:SpawnEntity( sound, playerEnt, "" ) 
+        local entity = EntityService:SpawnEntity( sound, player, "" ) 
         --EntityService:CreateOrSetLifetime( entity, 120, "normal" ) -- unneeded if base bp is correct
         end)
 
@@ -40,12 +41,12 @@ function ganger_tools:SpawnEnemy( blueprint, spawnPoint, groupName, aggression )
             enemy = EntityService:SpawnEntity( blueprint, spawnPoint, "wave_enemy")
             UnitService:SetInitialState( enemy, aggression )
         elseif aggression == UNIT_DEFENDER then 
-            enemy = EntityService:SpawnEntity( blueprint, spawnPoint, "wave_enemy")
-            UnitService:SetInitialState( enemy, aggression )
-            --UnitService:DefendSpot( enemy, 75, 250 )
-        elseif aggression == UNIT_WANDER then -- this path does not work
             enemy = EntityService:SpawnEntity( blueprint, spawnPoint, "enemy")
-            UnitService:SetInitialState( enemy, aggression )
+            --UnitService:SetInitialState( enemy, aggression )
+            UnitService:DefendSpot( enemy, 75, 250 )
+        -- elseif aggression == UNIT_WANDER then -- this path is non-functional
+        --     enemy = EntityService:SpawnEntity( blueprint, spawnPoint, "enemy")
+        --     UnitService:SetInitialState( enemy, aggression )
         end
         if enemy then EntityService:SetName( enemy, groupName ) end
         return enemy
@@ -73,40 +74,65 @@ end
 -------------------------------------------------------------------------
 -- Find Admissable Interior Spawnpoints (logic/spawn_objective)
 -------------------------------------------------------------------------
-function ganger_tools:FindAdmissibleInteriorSpawnPoints()
+function ganger_tools:MaybeRemoveSpawnPoints( spawnPoints, entity )
 
-    local denyEnt = nil
+    if spawnPoints == nil then return end
 
-    local hq = FindService:FindEntitiesByType("headquarters")
-    if hq and #hq > 0 then
-        denyEnt = hq[1]
-        --log("using HQ")
-    else 
-        denyEnt = self:GetPlayer()
-        --log("using player")
-    end
-
-    if not denyEnt then return nil end
-
-    local interiorSpawnPoints = self:FindAllInteriorSpawnPoints()
-    local admissibleSpawnPoints = {}
-
-    --log("scanning %d possible objectives", #objectives)
-    
-    for _,objective in ipairs( interiorSpawnPoints ) do
-        local denyPos = EntityService:GetPosition( denyEnt )
-        local objPos  = EntityService:GetPosition( objective )
-        if Distance( denyPos, objPos ) > 300 then
-            table.insert( admissibleSpawnPoints, objective )
+    local countRemove = 0
+    for i = #spawnPoints, 1, -1 do
+        local entityPos = EntityService:GetPosition( entity )
+        local spawnPointPos  = EntityService:GetPosition( spawnPoints[i] )
+        if Distance( entityPos, spawnPointPos ) > 128 then
+            table.remove(spawnPoints, i)
+            countRemove = countRemove + 1
         end
-        --local x, y, z = pos.x, pos.y, pos.z
     end
-
-    --log("found %d admissible interiorSpawnPoints", #admissibleObjectives)
-
-    return admissibleSpawnPoints
+    log("removed %d spawnpoints", countRemove)
 
 end
+-------------------------------------------------------------------------
+-- Find Admissable Spawnpoints 
+-------------------------------------------------------------------------
+function ganger_tools:FindAdmissibleInteriorSpawnPoints()
+    return GANGER_INSTANCE.admissibleInteriorSpawnPoints
+end
+function ganger_tools:FindAdmissibleBorderSpawnPoints()
+    return GANGER_INSTANCE.admissibleBorderSpawnPoints
+end
+-- function ganger_tools:FindAdmissibleInteriorSpawnPoints()
+
+--     local denyEnt = nil
+
+--     local hq = FindService:FindEntitiesByType("headquarters")
+--     if hq and #hq > 0 then
+--         denyEnt = hq[1]
+--         --log("using HQ")
+--     else 
+--         denyEnt = self:GetPlayer()
+--         --log("using player")
+--     end
+
+--     if not denyEnt then return nil end
+
+--     local interiorSpawnPoints = self:FindAllInteriorSpawnPoints()
+--     local admissibleSpawnPoints = {}
+
+--     --log("scanning %d possible objectives", #objectives)
+    
+--     for _,objective in ipairs( interiorSpawnPoints ) do
+--         local denyPos = EntityService:GetPosition( denyEnt )
+--         local objPos  = EntityService:GetPosition( objective )
+--         if Distance( denyPos, objPos ) > 300 then
+--             table.insert( admissibleSpawnPoints, objective )
+--         end
+--         --local x, y, z = pos.x, pos.y, pos.z
+--     end
+
+--     --log("found %d admissible interiorSpawnPoints", #admissibleObjectives)
+
+--     return admissibleSpawnPoints
+
+-- end
 -------------------------------------------------------------------------
 -- Spawns AROUND admissable interior spawn points (spread out)
 -------------------------------------------------------------------------

@@ -7,13 +7,13 @@ local ganger_chaos = {
     ["total"]         = 0,
     ["events"]        = {
     --    v1:  v2:                v3(quant)
-        {  09,  "dwellers",        50},  -- spawns a small wave of random alphas
+--       {  09,  "dwellers",        50},  -- spawns a small wave of random alphas
 --        {  09,  "miniwave",        50},  -- spawns a small wave of random alphas
 --        {  07,  "assassins",       7},   -- spawns an ambush
---        {  05,  "wingmites",       32},  -- spawn annoying wingmites
---        {  03, "boss",             1},  -- spawns a boss
---        {  01, "bossspawn",       50},  -- spawns wave on existing bosses
---      {  01,  "aggro",            0},
+       {  05,  "wingmites",       32},  -- spawn annoying wingmites
+--        {  03,  "boss",             1},  -- spawns a boss
+--        {  01,  "bossspawn",       50},  -- spawns wave on existing bosses
+--        {  01,  "aggro",            0},
     }
 }
 --------------------------------------------------------------------------
@@ -145,7 +145,7 @@ function ganger_chaos:ChaosMiniwave( eventName, eventQuant )
     local groupName = "Ganger:" .. eventName
 
     local spawnPoints = gtools:SpawnAtNearbySpawnPoints( blueprint, groupName, 1, eventQuant, UNIT_AGGRESSIVE )
-        gtools:PlaySoundOnPlayer( "ganger/effects/minialert" )
+        gtools:PlaySoundOnPlayer( "ganger/effects/minoralert" )
     for _,spawnPoint in ipairs(spawnPoints) do
 --effects/messages_and_markers/warning_marker_red
 --effects/messages_and_markers/wave_marker_nest
@@ -194,7 +194,7 @@ function ganger_chaos:ChaosBoss( eventName, eventQuant )
         log("too many %s; sleeping", groupName)
         return
     end
-    gtools:PlaySoundOnPlayer( "ganger/effects/minialert" )
+    gtools:PlaySoundOnPlayer( "ganger/effects/minoralert" )
     log("**** BOSS spawning: %s", blueprint)
     gtools:SpawnAtDynamicSpawnPoints( blueprint, groupName, 1, eventQuant, UNIT_WANDER )
 
@@ -207,7 +207,7 @@ function ganger_chaos:ChaosBossspawn( eventName, eventQuant )
 
     if bosses and #bosses > 0 then
         log("ChaosBossspawn found #bosses = %d,", #bosses)
-        gtools:PlaySoundOnPlayer( "ganger/effects/minialert" )
+        gtools:PlaySoundOnPlayer( "ganger/effects/minoralert" )
         for _,boss in ipairs( bosses ) do
 
             local blueprint = EntityService:GetBlueprintName( boss )
@@ -238,15 +238,21 @@ function ganger_chaos:ChaosAggro( eventQuant )
     local waveTeam = EntityService:GetTeam( "wave_enemy" )
 
     if enemies and #enemies > 100 then
-        gtools:PlaySoundOnPlayer( "ganger/effects/minialert" )
-    end
-
-    log("Aggro found #enemies = %d", #enemies)
-    for _,enemy in pairs ( enemies ) do
-        EntityService:SetTeam( enemy, waveTeam ) -- coordinate together all
+        gtools:PlaySoundOnPlayer( "ganger/effects/minoralert" )
     end
 
     log("***AGGRO***")
+    log("Aggro found #enemies = %d", #enemies)
+    for _,enemy in pairs ( enemies ) do
+        EntityService:SetTeam( enemy, waveTeam ) -- coordinate together all
+        local enemyName = EntityService:GetName( enemy )
+        if enemyName == "Ganger:dwellers" then
+            log("try aggro ganger %d", enemy)
+            QueueEvent( "UnitAggressiveStateEvent", enemy )
+        end
+    end
+
+
     EntityService:ChangeAIGroupsToAggressive(gtools:GetPlayer(), 2000, true)
 
 end

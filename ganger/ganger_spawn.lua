@@ -36,6 +36,7 @@ function ganger_spawn:SpawnWaves( spawnPoints, currentWaveSet, attackSize )
 
     log("SPAWN POINTS (%d)", #spawnPoints)
 
+    spawnPoints = { gtools:GetPlayer() }
     -- pseudo unique ID; need to have something to fetch againgst
     -- each time so that we don't inadvertently buff overlapping waves
 
@@ -51,7 +52,7 @@ function ganger_spawn:SpawnWaves( spawnPoints, currentWaveSet, attackSize )
         log("SPAWNPOINT: %d: %d,%d,%d ====> SPAWNING %d blueprint sets", spawnPoint, x, y, z, Size(wave))
 
         gwave:LogWave( wave )
-        for blueprint, count in pairs ( wave ) do
+        for blueprint, count in pairs( wave ) do
             log("spawn_at_spawnpoint %s: %d", blueprint, count)
             self:SpawnAtSpawnPoint( blueprint, spawnPoint, waveName, count )
         end
@@ -88,7 +89,7 @@ end
 -------------------------------------------------------------------------
 function ganger_spawn:PickSpawnPoints( spawnPointCount )
     --self.spawnPoints = { gtools:GetPlayer() }
-    local allSpawnPoints = gtools:FindAllBorderSpawnPoints()
+    local allSpawnPoints = gtools:FindAdmissibleBorderSpawnPoints()
     -- local allSpawnPoints = self:FindAllPlayerSpawnPoints()
     self.spawnPoints = gtools:DrawDistinctRandomsFromTable( allSpawnPoints, spawnPointCount )
     return self.spawnPoints

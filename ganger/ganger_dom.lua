@@ -74,7 +74,9 @@ function ganger_dom:LogSettings()
 		"  totalWaves:          " .. self.totalWaves .. "\n" ..
 
         "  currentWaveSet:      " .. tostring( self.currentWaveSet ) .. "\n" ..
-        "  currentSpawnPoints:  " .. tostring( self.currentSpawnPoints ) .. "\n" ..
+        "  currentSpawnPoints:  #" .. tostring( #self.currentSpawnPoints ) .. "\n" ..
+        "  admissibleBorders :  #" .. tostring( #self.admissibleBorderSpawnPoints ) .. "\n" ..
+        "  admissibleInteriors: #" .. tostring( #self.admissibleInteriorSpawnPoints ) .. "\n" ..
         "  testMode:            " .. tostring( self.testMode ) .. "\n" ..
         "  chaos:               " .. tostring( self.chaos ) .. "\n" ..
         "  silence:             " .. tostring( self.silence )
@@ -100,9 +102,9 @@ function ganger_dom:InitSettings( )
 	self.warmupTime          = DifficultyService:GetWarmupDuration()
 	self.waveTime            = DifficultyService:GetWaveIntermissionTime()
     self.currentWaveSet      = gwave:GetWaveSet()
-    self.currentSpawnPoints  = nil
-    
-    --self.buffList = {}
+    self.currentSpawnPoints  = {}
+    self.admissibleInteriorSpawnPoints = gtools:FindAllInteriorSpawnPoints( )
+    self.admissibleBorderSpawnPoints = gtools:FindAllInteriorSpawnPoints( )
 
     local ok = pcall(function()
         local prefs = require("ganger/ganger_prefs.lua")
@@ -127,8 +129,6 @@ function ganger_dom:InitSettings( )
         self.hpEffective = 1.2
     elseif self.waveStrength == "hard" then
         self.hpEffective = 1.1
-    elseif self.waveStrength == "easy" then
-        self.hpEffective = .8
     end
     self.hpEffective = self.hpEffective * self.difficultyMult
 
@@ -162,15 +162,15 @@ GANGSAFE(function()
 
     GANGER_INSTANCE = self
 
-    -- if pcall(function() 
-    --     RegisterGlobalEventHandler("EntityKilledEvent", function(event)
-    --         self:OnEntityKilled(event)
-    --     end)
-    -- end) then
-    --     log("OnKilledEvent handler registered")
-    -- else
-    --     log("OnKilledEvent handler failed registration")
-    -- end
+    if pcall(function() 
+        RegisterGlobalEventHandler("BuildingBuildEvent", function(event)
+            self:OnBuildingBuild(event)
+        end)
+    end) then
+        log("BuildingBuildEvent handler registered")
+    else
+        log("BuildingBuildEvent handler failed registration")
+    end
 
     --state machines; each loop independently
 
@@ -195,7 +195,7 @@ GANGSAFE(function()
 
 	-- start your engines!
 
-	--self.actionm:ChangeState("prep")
+	self.actionm:ChangeState("prep")
     self.ambientm:ChangeState("ambient")
     self.chaosm:ChangeState("chaos")
 
@@ -210,9 +210,16 @@ GANGSAFE(function()
     log("--------------------------------------------------------------------------------")
     log("ganger_dom:ON_LOAD() data:" .. tostring(self.data))
     log("--------------------------------------------------------------------------------")
-    -- RegisterGlobalEventHandler("EntityKilledEvent", function(event)
-    --     self:OnEntityKilled(event) end)
-    -- log("OnKilledEvent handler registered")
+
+    if pcall(function() 
+        RegisterGlobalEventHandler("BuildingBuildEvent", function(event)
+            self:OnBuildingBuild(event)
+        end)
+    end) then
+        log("BuildingBuildEvent handler registered")
+    else
+        log("BuildingBuildEvent handler failed registration")
+    end
 
     GANGER_INSTANCE = self
 
@@ -389,11 +396,11 @@ end
 function ganger_dom:ChaosEnd(state)
 GANGSAFE(function()
 
-    --gchaos:ChaosAggro() -- unreliable
+    -- gchaos:ChaosAggro() -- unreliable
     -- if not self.chaosCount then self.chaosCount = 0
     -- else self.chaosCount = self.chaosCount + 1 end
 
-    local chaos_caused = gchaos:MaybeCauseChaos( 0 )
+    local chaos_caused = gchaos:MaybeCauseChaos( 1 )
 
     if (chaos_caused) then
         self.lastChaosTime = GetLogicTime()
@@ -403,37 +410,6 @@ GANGSAFE(function()
 
 end)
 end
-------------------------------------------------------------------------
--- BUFF: Buffs various mobs based on current difficulty
--- buff won't buff the same mobs twice; this is mainly so that we
--- don't multiplicatively expload the health of static map mobs
-------------------------------------------------------------------------
--- function ganger_dom:BuffStart(state)
--- GANGSAFE(function()
-
---     --log("BuffStart()")
---     state:SetDurationLimit( self.buffDelay )
-
--- end)
--- end
--- ------------------------------------------------------------------------
--- function ganger_dom:BuffEnd(state)
--- GANGSAFE(function()
-
---     --log("BuffEnd()")
---     -- if (self.buffList) then
---     --     while #self.buffList > 0 do
---     --         local waveName = table.remove(self.buffList, 1)
---     --         gspawn:BuffEnemiesByWaveName( waveName, self.hpEffective )
---     --     end
---     -- end
-
--- 	--self:BuffAllMapEnemies()
---     --self:AggroAllMapEnemies()
---     self.buffm:ChangeState("buff")
-
--- end)
--- end
 ------------------------------------------------------------------------
 -- AMBIENT; gives this mod a distinct flavor with background roars
 ------------------------------------------------------------------------
@@ -568,6 +544,21 @@ function ganger_dom:ProcessDifficultyIncrease(state)
         self.level, self.hpEffective, self.spawnPointCount, self.attackCount, self.attackSize
         )
 
+end
+------------------------------------------------------------------------------------
+-- Observe all builds; we're doing this because it's the most efficient way to 
+-- keep a curated list of spawn points at least 128 away from a building
+------------------------------------------------------------------------------------
+function ganger_dom:OnBuildingBuild( event )
+GANGSAFE(function()
+
+    local building = event:GetEntity()
+    log("Building built = %d", building)
+
+    gtools:MaybeRemoveSpawnPoints( self.admissibleBorderSpawnPoints, building )
+    gtools:MaybeRemoveSpawnPoints( self.admissibleInteriorSpawnPoints, building )
+
+end)
 end
 ------------------------------------------------------------------------------------
 -- Observe all kills

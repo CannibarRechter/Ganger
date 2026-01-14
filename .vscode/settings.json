@@ -1,5 +1,6 @@
 {
     "editor.semanticHighlighting.enabled": false,
+    "editor.bracketPairColorization.enabled": false,
     "editor.inlineSuggest.enabled": false,
     "editor.renderWhitespace": "none",
  //   "editor.occurrencesHighlight": "off",
@@ -12,15 +13,17 @@
     "editor.autoClosingQuotes": "never",
     "Lua.diagnostics.disable": [ "trailing-space", ],
     "workbench.colorCustomizations": {
-    "editor.background": "#fffcf2",
-    "editor.selectionBackground": "#fffb0c",
-    },
-    "editor.tabSize": 4,
-    "[lua]": {
-        "editor.renderWhitespace": "none",
+        "editor.background": "#fffcf2",
+        "editor.selectionBackground": "#fffb0c",
     },
     "editor.tokenColorCustomizations": {
         "textMateRules": [ 
+            {
+                "scope": "punctuation",
+                "settings": {
+                    "fontStyle": "bold"
+                }
+            },
             {
                 "scope": [ "keyword", "support.function.lua"],
                 "settings": {
