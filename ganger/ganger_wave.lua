@@ -156,7 +156,10 @@ function ganger_wave:CreateWave( wave_set, n_enemies )
     for i = 1, n_enemies do
         local bp_name = self:PickEnemy (wave_set)
         if not bp_name then
-            log("nil bp_name")
+            log("#### error: no picked enemy")
+        elseif GANGER_INSTANCE.level < 6 and 
+            (string.find( bp_name, "boss" ) or string.find( bp_name, "canceroth" )) then
+            -- nothing, just drop the boss
         else
             if not wave[bp_name] then
                 wave[bp_name] = 1

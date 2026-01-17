@@ -34,9 +34,9 @@ local ganger_spawn = { }
 -------------------------------------------------------------------------
 function ganger_spawn:SpawnWaves( spawnPoints, currentWaveSet, attackSize )
 
+    table.insert( spawnPoints, gtools:GetPlayer() ) -- testing only TODO
     log("SPAWN POINTS (%d)", #spawnPoints)
 
-    spawnPoints = { gtools:GetPlayer() }
     -- pseudo unique ID; need to have something to fetch againgst
     -- each time so that we don't inadvertently buff overlapping waves
 
@@ -75,7 +75,7 @@ function ganger_spawn:SpawnAtSpawnPoint ( blueprint, spawnPoint, waveName, count
     for i = 1, count do
         local enemy = gtools:SpawnEnemy( blueprint, spawnPoint, waveName, UNIT_AGGRESSIVE )
         if enemy then
-            self:BuffSingleEnemy( enemy, GANGER_INSTANCE.hpEffective )
+            gtools:BuffSingleEnemy( enemy, GANGER_INSTANCE.hpEffective )
             table.insert( entities, enemy )
         else
             log("#### invalid blueprint %s", blueprint )
@@ -90,7 +90,7 @@ end
 function ganger_spawn:PickSpawnPoints( spawnPointCount )
     --self.spawnPoints = { gtools:GetPlayer() }
     local allSpawnPoints = gtools:FindAdmissibleBorderSpawnPoints()
-    -- local allSpawnPoints = self:FindAllPlayerSpawnPoints()
+
     self.spawnPoints = gtools:DrawDistinctRandomsFromTable( allSpawnPoints, spawnPointCount )
     return self.spawnPoints
 end

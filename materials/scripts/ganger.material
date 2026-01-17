@@ -1,0 +1,11 @@
+import * from "materials/scripts/gui.material"
+
+material ganger/ganger_wingmites : gui/default
+{	
+	set_texture_alias diffuse			materials/textures/ganger_wingmites.dds
+}
+
+material ganger/ganger_assassins : gui/default
+{	
+	set_texture_alias diffuse			materials/textures/ganger_assassins.dds
+}

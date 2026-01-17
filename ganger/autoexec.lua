@@ -8,7 +8,7 @@ local function PatchGame()
 
     -- check this because it is at autoexec time ONLOAD
     -- also: no need to add the game rule during load anyway
-    log("Patching base game")
+
     if survival_base == nil then
         log("No 'survival_base'. If this is savegame load, it is expected.")
         return
@@ -26,6 +26,7 @@ local function PatchGame()
         else
             local ok, err = pcall(function()
                 MissionService:AddGameRule( "ganger/ganger_dom.lua", "unused" )
+                MissionService:AddGameRule( "ganger/ganger_chaos.lua", "unused" )
                 -- MissionService:AddGameRule( "ganger/ganger_spawn.lua", "unused" )
                 -- MissionService:AddGameRule( "ganger/ganger_wave.lua", "unused" )
             end)
@@ -44,11 +45,6 @@ local function ganger_autoexec()
     local mission = MissionService:GetCurrentMissionName()
     local isMain = tostring(MissionService:IsMainMission())
     local biome = MissionService:GetCurrentBiomeName()
-    --CampaignService:IncreaseCreaturesBaseDifficulty( 20.0 )
-    --local baseDifficulty = CampaignService:GetCreaturesBaseDifficulty()
-    --local wave_set = gwaves:GetWaveSet()
-    --local wave = gwaves:CreateWave( wave_set, 500 )
-    --local difficulty = DifficultyService:GetDifficulty()
     log("--------------------------------------------------------------------------------")
     log("GANGER AUTOEXEC")
     log("mission: %s; biome: %s; main mission: %s", mission, biome, isMain )

@@ -1,0 +1,71 @@
+FlowGraphBindings
+{
+	Database
+	{
+		Strings
+		{
+			StringData
+			{
+				value
+				key "ganger_text_text"
+			}
+
+		}
+
+		Floats
+		{
+			FloatData
+			{
+				value "0"
+				key "ganger_text_time"
+			}
+
+		}
+
+		Vectors
+		Integers
+	}
+
+	Bindings
+	{
+		ganger_text
+		{
+			//database@Strings@StringData[1]@value "ganger_text_text"
+			database
+			{
+				Strings
+				{
+					StringData[1]
+					{
+						value "ganger_text_text"
+					}
+
+				}
+
+			}
+
+		}
+
+		logic_wait_1
+		{
+			//database@Floats@FloatData@value "ganger_text_time"
+			database
+			{
+				Floats
+				{
+					FloatData
+					{
+						value "ganger_text_time"
+					}
+
+				}
+
+			}
+
+		}
+
+	}
+
+	DynamicBindings
+}
+

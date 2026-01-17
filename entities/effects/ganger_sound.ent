@@ -141,3 +141,19 @@ EntityBlueprint
 		name "ganger/sound/wingmites"
 	}
 }
+
+EntityBlueprint
+{
+	base_blueprints
+	{
+		effects/default
+	}
+
+	name ganger/effects/endgame
+	
+	SoundDesc
+	{
+		name "ganger/sound/endgame"
+	}
+}
+

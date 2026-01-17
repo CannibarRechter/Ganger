@@ -8,7 +8,6 @@
 require("ganger/ganger_safe.lua")
 local gtools = require("ganger/ganger_tools.lua")
 local gspawn = require("ganger/ganger_spawn.lua")
-local gchaos = require("ganger/ganger_chaos.lua")
 local gwave = require("ganger/ganger_wave.lua")
 local log = require("ganger/ganger_logger.lua")
 ------------------------------------------------------------------------------------
@@ -22,14 +21,13 @@ GANGER_INSTANCE = nil -- inited in Init/OnLoad
 ------------------------------------------------------------------------------------
 local settings = {
     level              = 0,
-    scaling            = 0.05,
-    difficultyMult     = 1,
+    scaling            = 0.1, -- additive percent
     hpEffective        = 1,
     waveStrength       = nil,
     spawnPointCount    = 2,
     attackCount        = nil,
     attackSize         = 100,
-    maxSpawnPointCount = 12,
+    maxSpawnPointCount = 10,
     maxAttackSize      = 300,
 
     warmupTime         = nil,
@@ -44,6 +42,7 @@ local settings = {
     totalWaves         = 0,
 
     testMode           = false,
+    ambience           = true,
     silence            = false,
     chaos              = true
 }
@@ -79,6 +78,7 @@ function ganger_dom:LogSettings()
         "  admissibleInteriors: #" .. tostring( #self.admissibleInteriorSpawnPoints ) .. "\n" ..
         "  testMode:            " .. tostring( self.testMode ) .. "\n" ..
         "  chaos:               " .. tostring( self.chaos ) .. "\n" ..
+        "  ambience:            " .. tostring( self.ambience ) .. "\n" ..
         "  silence:             " .. tostring( self.silence )
 		)
 
@@ -99,30 +99,15 @@ function ganger_dom:InitSettings( )
 
 	self.waveStrength        = DifficultyService:GetWaveStrength()
 	self.attackCount         = DifficultyService:GetAttacksCountMultiplier()
-	self.warmupTime          = DifficultyService:GetWarmupDuration()
-	self.waveTime            = DifficultyService:GetWaveIntermissionTime()
+	self.warmupTime          = math.max( DifficultyService:GetWarmupDuration(), 300)
+	self.waveTime            = math.max( DifficultyService:GetWaveIntermissionTime(), 120)
     self.currentWaveSet      = gwave:GetWaveSet()
     self.currentSpawnPoints  = {}
     self.admissibleInteriorSpawnPoints = gtools:FindAllInteriorSpawnPoints( )
-    self.admissibleBorderSpawnPoints = gtools:FindAllInteriorSpawnPoints( )
+    self.admissibleBorderSpawnPoints   = gtools:FindAllBorderSpawnPoints( )
 
-    local ok = pcall(function()
-        local prefs = require("ganger/ganger_prefs.lua")
-        self.maxAttackSize  = prefs.maxAttackSize
-        self.difficultyMult = prefs.difficultyMult
-        self.scaling        = prefs.scaling
-        self.silence        = prefs.silence
-        self.testMode       = prefs.testMode
-        self.chaos          = prefs.chaos
-    end)
-    if not ok then log("No prefs found.")
-    else log("Prefs loaded.") end
-
-    if self.testMode then
-        self.attackCount  = math.max (1,  self.attackCount)
-        self.warmupTime   = math.min (2,  self.warmupTime)
-        self.waveTime     = math.min (30, self.waveTime)
-    end
+    self:LoadPrefs()
+    self:MaybeApplyTestMode()
 
     -- defaults: normal = 1
     if self.waveStrength == "brutal" then
@@ -130,20 +115,23 @@ function ganger_dom:InitSettings( )
     elseif self.waveStrength == "hard" then
         self.hpEffective = 1.1
     end
-    self.hpEffective = self.hpEffective * self.difficultyMult
 
 	self:LogSettings()
+    gwave:LogWaveSet( self.currentWaveSet )
 end
 ------------------------------------------------------------------------------------
 -- Sanitize Settings: called on load; ensures code changes align with old savegames
 ------------------------------------------------------------------------------------
 function ganger_dom:SanitizeSettings()
+    -- ensures that older save games without current settings havfe the value
+    -- push from the local table to the dom table ensures persistence
     for k, v in pairs(settings) do
         if self[k] == nil then
             self[k] = v
         end
     end
-    -- FUTURE function calls here only if needed (new vars from game data)
+    -- FUTURE function calls here only if needed (new vars from game data
+    -- or settings that are determined dynamically
 end
 
 ------------------------------------------------------------------------------------
@@ -153,16 +141,16 @@ function ganger_dom:init()
 GANGSAFE(function()
 
     log("--------------------------------------------------------------------------------")
-    log("ganger_dom:INIT() self: %s self.data: %s", tostring(self), tostring(self.data))
+    log("ganger_dom:INIT() self: %s", tostring(self))
     log("--------------------------------------------------------------------------------")
 	-- self.marked_enemies = setmetatable({}, { __mode = "k" }) -- mode k makes the table weak; if objects in it are gc'd the entry is erased
 
 	self:InitSettings()
-    self:PatchGame()
 
     GANGER_INSTANCE = self
 
     if pcall(function() 
+        -- used to track range of buildings to interior spawn points
         RegisterGlobalEventHandler("BuildingBuildEvent", function(event)
             self:OnBuildingBuild(event)
         end)
@@ -179,7 +167,9 @@ GANGSAFE(function()
     self.ambientm   = self:CreateStateMachine() -- ambient sounds
     self.susm       = self:CreateStateMachine() -- occasional sussurus
     self.alarmm     = self:CreateStateMachine() -- occasional alarm
+    self.endm       = self:CreateStateMachine() -- endgame sequence
 
+    -- main spawning engine
     self.actionm:AddState("prep",     { enter=  "PrepStart",    exit="PrepEnd"   	}) -- breather without display on screen
     self.actionm:AddState("wait",     { enter=  "WaitStart",    exit="WaitEnd"   	}) -- display on screen with countdown
     self.actionm:AddState("action",   { enter=  "ActionStart", 
@@ -187,17 +177,22 @@ GANGSAFE(function()
                                         execute="ActionLoop",   interval=self.multiAttackTime,
                                         exit="ActionEnd" 	}) 
 
+    -- chaos engine (random events)
     self.chaosm:AddState("chaos",     { enter=  "ChaosStart",   exit="ChaosEnd"   	})
 
-    self.ambientm:AddState("ambient", { enter=  "AmbientStart", exit="AmbientEnd"   }) 
+    -- sound related: ambient is continuous, all others are conditional
+
+    self.ambientm:AddState("ambient", { enter=  "AmbientStart", exit="AmbientEnd"   })
     self.susm:AddState("sus",         { enter=  "SusStart",     exit="SusEnd" 	    }) 
     self.alarmm:AddState("alarm",     { enter=  "AlarmStart",   exit="AlarmEnd" 	}) 
+    self.endm:AddState("endgame",     { enter=  "EndgameStart", exit="EndgameEnd" 	}) 
 
 	-- start your engines!
-
 	self.actionm:ChangeState("prep")
-    self.ambientm:ChangeState("ambient")
+    if self.ambience then self.ambientm:ChangeState("ambient") end
     self.chaosm:ChangeState("chaos")
+
+    self:PatchEndGame()
 
 end)
 end
@@ -212,6 +207,7 @@ GANGSAFE(function()
     log("--------------------------------------------------------------------------------")
 
     if pcall(function() 
+        -- used to track range of buildings to interior spawn points
         RegisterGlobalEventHandler("BuildingBuildEvent", function(event)
             self:OnBuildingBuild(event)
         end)
@@ -225,36 +221,59 @@ GANGSAFE(function()
 
     self:SanitizeSettings()
     self:LogSettings()
-    self:PatchGame()
+    self:PatchEndGame()
 
     -- enable changing preferences on game reload
-    local ok = pcall(function()
-        local prefs = require("ganger/ganger_prefs.lua")
-        self.maxAttackSize  = prefs.maxAttackSize
-        self.silence        = prefs.silence
-        self.chaos          = prefs.chaos
-    end)
-    if not ok then log("No prefs found.")
-    else log("Prefs loaded.") end
+    self:LoadPrefs()
+    self:MaybeApplyTestMode()
 
-    -- gwave:LogWaveSet( self.currentWaveSet )
+    gwave:LogWaveSet( self.currentWaveSet )
 
 end)
 end
 ------------------------------------------------------------------------------------
+--  Load Prefs
+------------------------------------------------------------------------------------
+function ganger_dom:LoadPrefs()
+    local ok = pcall(function()
+        local prefs = require("ganger/ganger_prefs.lua")
+        self.maxAttackSize  = prefs.maxAttackSize
+        self.scaling        = prefs.scaling
+        self.ambience       = prefs.ambience
+        self.silence        = prefs.silence
+        self.chaos          = prefs.chaos
+        self.testMode       = prefs.testMode
+    end)
+    if not ok then log("No prefs found.")
+    else log("Prefs loaded.") end
+end
+------------------------------------------------------------------------------------
+--  Test Mode
+------------------------------------------------------------------------------------
+function ganger_dom:MaybeApplyTestMode()
+    if self.testMode then
+        self.level          = 8
+        self.maxAttackSize  = 400
+        self.attackCount    = 5
+        self.warmupTime     = 5
+        self.waveTime       = 60
+    end
+end
+------------------------------------------------------------------------------------
 -- Patch Game: runtime patches
 ------------------------------------------------------------------------------------
-function ganger_dom:PatchGame()
+function ganger_dom:PatchEndGame()
 GANGSAFE(function()
 
-    local old_mission_fail = dom_mananger.OnRespawnFailedEvent
+    self.oldMissionFail = dom_mananger.OnRespawnFailedEvent
 
-    dom_mananger.OnRespawnFailedEvent = function(self, evt)
-        log("mission fail preexecute test")
-        local ok = pcall(old_mission_fail, self, evt)
-        if not ok then log("failed to invoke old mission fail")
-        else log("invoked old mission")
-        end
+    dom_mananger.OnRespawnFailedEvent = function(oldDomInstance, evt)
+
+        -- must save both so they can be passed back to the game asynchronously
+        self.oldMissionFailEvt = evt
+        --self.oldDomInstance = oldDomInstance
+        self.endm:ChangeState("endgame")
+
     end
 
 end)
@@ -321,8 +340,10 @@ function ganger_dom:ActionStart(state)
 GANGSAFE(function()
 
     log("ActionStart")
+    self.actionCount = 0
     self.susm:ChangeState("sus")
     self.currentSpawnPoints = gspawn:PickSpawnPoints( self.spawnPointCount)
+    table.insert( self.currentSpawnPoints, gtools:GetPlayer() )
 
     for _,sp in ipairs( self.currentSpawnPoints ) do
 
@@ -340,17 +361,20 @@ GANGSAFE(function()
 end)
 end
 ------------------------------------------------------------------------
+-- ActionLoop: loops over the attack count parameter as given by player
+------------------------------------------------------------------------
 function ganger_dom:ActionLoop(state)
 GANGSAFE(function()
 
     self.priorRuntime = self.recentRuntime
     self.recentRuntime = GetLogicTime()
-    if not self.actionCount then self.actionCount = 1 end
+
+    self.actionCount = self.actionCount + 1
     log("ActionLoop() ACTION#: %d", self.actionCount)
     gtools:PlaySoundOnPlayer( "ganger/effects/big_roar" )
     self.alarmm:ChangeState("alarm")
     gspawn:SpawnWaves( self.currentSpawnPoints, self.currentWaveSet, self.attackSize )
-    self.actionCount = self.actionCount + 1
+
     if self.actionCount > self.attackCount then 
         state:Exit()
     end
@@ -361,8 +385,9 @@ end
 function ganger_dom:ActionEnd(state)
 GANGSAFE(function()
 
-    self.actionCount = 0
     self:ProcessDifficultyIncrease()
+    local text = string.format("WRATH LEVEL %d", self.level)
+    self:DisplayText( text, 0.5 )
     self.actionm:ChangeState("prep")
     --log("ActionEnd() ### TERMINATED")
 
@@ -396,11 +421,12 @@ end
 function ganger_dom:ChaosEnd(state)
 GANGSAFE(function()
 
-    -- gchaos:ChaosAggro() -- unreliable
+    --GANGER_CHAOS:ChaosAggro() 
     -- if not self.chaosCount then self.chaosCount = 0
     -- else self.chaosCount = self.chaosCount + 1 end
+    --log("MaybeCauseChaos(): admissibleInteriorSpawnPoints = %d", #GANGER_INSTANCE.admissibleInteriorSpawnPoints)
 
-    local chaos_caused = gchaos:MaybeCauseChaos( 1 )
+    local chaos_caused = GANGER_CHAOS:MaybeCauseChaos( 1 )
 
     if (chaos_caused) then
         self.lastChaosTime = GetLogicTime()
@@ -416,13 +442,11 @@ end
 function ganger_dom:AmbientStart(state)
 GANGSAFE(function()
 
-    --log("AmbientStart()")
-
     -- more lively at night
     local lightLevel = EnvironmentService:GetLightIntensity()
-    local daylightFactor = math.floor( lightLevel*10 + 0.5 )
+    local daylightFactor = lightLevel*10 -- 0-1 becomes 0-10
 
-    local offset = RandInt( 1, 3 ) + daylightFactor
+    local offset = RandFloat( 0, 5 ) + daylightFactor -- up to ~15 seconds longer during day
     state:SetDurationLimit( self.ambientDelay + offset )
 
 end)
@@ -430,8 +454,6 @@ end
 ------------------------------------------------------------------------
 function ganger_dom:AmbientEnd(state)
 GANGSAFE(function()
-
-	--log("AmbientEnd()")
 
     if RandInt( 1, 3) == 1 then
         if EnvironmentService:GetLightIntensity() < 0.3 then
@@ -508,6 +530,39 @@ GANGSAFE(function()
 end)
 end
 ------------------------------------------------------------------------
+-- Endgame; displays banner and ends game
+------------------------------------------------------------------------
+function ganger_dom:EndgameStart(state)
+GANGSAFE(function()
+
+    local text = string.format("ASHLEY REACHED WRATH LEVEL %d", self.level)
+    self:DisplayText( text )
+    SoundService:Play("ganger/sound/endgame") -- can't play on player: they're dead
+    --GuiService:FadeOut( 5 )
+    --LogService:DebugText( 600, 350, text, "debug_white_size_38" )
+    self:DisplayTimer(8, text)
+    state:SetDurationLimit( 8 )
+
+end)
+end
+------------------------------------------------------------------------
+function ganger_dom:EndgameEnd(state)
+GANGSAFE(function()
+
+    LampService:ReportGameFailed()
+	MissionService:ShowEndGameHud( 0.0, false )
+
+	local failedAction = MissionService:GetCurrentMissionFailedAction();
+	if ( failedAction ~= MFA_REMAIN ) then
+		MissionService:DeactivateAllFlows()
+	end
+
+    -- local ok, err = pcall(self.oldMissionFail, self.oldDomInstance, self.oldMissionFailEvt)
+    -- if not ok then log("failed to invoke old mission fail: %s", tostring(err)) end
+
+end)
+end
+------------------------------------------------------------------------
 -- Insert waveName into the buff list
 ------------------------------------------------------------------------
 -- function ganger_dom:InsertBuffList( waveName )
@@ -521,7 +576,8 @@ function ganger_dom:ProcessDifficultyIncrease(state)
     -- no upper limit on scaling; just go until the player fails
 
     self.level = self.level + 1
-    self.hpEffective = self.hpEffective * (1 + self.scaling)
+
+    self.hpEffective = 1 + self.scaling * self.level
 
     -- limit these to prevent wrecking CPU
 
@@ -539,10 +595,10 @@ function ganger_dom:ProcessDifficultyIncrease(state)
         self.spawnPointCount = self.maxSpawnPointCount
     end
 
-    gwave:GrowWaveSet( self.currentWaveSet )
     log("DifficultyIncrease(): lvl=%d; hp=%.1f; #sps=%.1f; #attacks=%.1f; attacksz=%.1f",
         self.level, self.hpEffective, self.spawnPointCount, self.attackCount, self.attackSize
         )
+    gwave:GrowWaveSet( self.currentWaveSet )
 
 end
 ------------------------------------------------------------------------------------
@@ -553,69 +609,64 @@ function ganger_dom:OnBuildingBuild( event )
 GANGSAFE(function()
 
     local building = event:GetEntity()
-    log("Building built = %d", building)
-
-    gtools:MaybeRemoveSpawnPoints( self.admissibleBorderSpawnPoints, building )
     gtools:MaybeRemoveSpawnPoints( self.admissibleInteriorSpawnPoints, building )
 
 end)
 end
-------------------------------------------------------------------------------------
--- Observe all kills
-------------------------------------------------------------------------------------
--- function ganger_dom:OnEntityKilled( event )
--- GANGSAFE(function()
-
---     local entity = nil
-
---     local ok, err = pcall( function() entity = event:GetEntity() end)
-
---     -- if not ganger_dom then
---     --     log("MaybeDelete: self NIL")
---     --     return
---     -- end
---     if not self.buffed_enemies then
---         log("OnEntityKilled: buffed enemies NIL")
---         return
---     end
-
---     if ok then
---         local teamStr = tostring( EntityService:GetTeam(entity))
---         --log("Entity killed:" .. string.format("entity: %d; team: %s", entity, teamStr))
---         self:MaybeDelete( entity )
---     else
---         log("event check failed:" .. tostring(err))
---     end
-
--- end)
--- end
-------------------------------------------------------------------------------------
--- Dump count in buffed list; for debugging
-------------------------------------------------------------------------------------
-
--- function ganger_dom:LogBuffedEnemies()
--- 	log("LogBuffedEnemies(): buffed enemies count#: " .. tostring(Size(self.buffed_enemies)) )
--- end
-
 ------------------------------------------------------------------------
 -- Display Timer
 ------------------------------------------------------------------------
-
 function ganger_dom:DisplayTimer(seconds, text)
-    local logic = "logic/ga_timer.logic"
+    local logic = "logic/ganger_timer.logic"
 
     --log("DisplayTimer(): trying timer with: " .. string.format("t: %d; value: %s; data: %s", seconds, text, tostring(self.data)))
 
     if not self.data then return end
 
     local ok, err = pcall(function()
-            self.data:SetFloat("ga_time", seconds or 0)
-            self.data:SetString("ga_text", text or "")
+            self.data:SetFloat("ganger_timer_time", seconds or 0)
+            self.data:SetString("ganger_timer_text", text or "")
             MissionService:ActivateMissionFlow("", logic, "default", self.data)
         end)
     if not ok then
-        log("DisplayTimer(): ActivateMissionFlow failed with err: " .. tostring(err))
+        log("#### DisplayTimer(): ActivateMissionFlow failed with err: " .. tostring(err))
     end
 end
+------------------------------------------------------------------------
+-- Display Endgame
+------------------------------------------------------------------------
+function ganger_dom:DisplayText( text, time )
+    time = time or 5
+    local logic = "logic/ganger_text.logic"
 
+    if not self.data then return end
+
+    local ok, err = pcall(function()
+            self.data:SetString("ganger_text_text", text)
+            self.data:SetFloat("ganger_text_time", time)
+            MissionService:ActivateMissionFlow("", logic, "default", self.data)
+        end)
+    if not ok then
+        log("#### DisplayText(): ActivateMissionFlow failed with err: " .. tostring(err))
+    end
+end
+------------------------------------------------------------------------
+-- Display Text
+------------------------------------------------------------------------
+function ganger_dom:DisplayDialog( sound, text )
+    local logic = "logic/ganger_dialog.logic"
+
+    if not self.data then return end
+
+    local ok, err = pcall(function()
+            self.data:SetString("ganger_dialog_sound", sound)
+            self.data:SetString("ganger_dialog_text", text)
+            MissionService:ActivateMissionFlow("", logic, "default", self.data)
+        end)
+    if not ok then
+        local trace = debug.traceback(err, 2)
+        log("#### DisplayDialog(): ActivateMissionFlow failed with err: %s", trace)
+    end
+end
+------------------------------------------------------------------------
 return ganger_dom

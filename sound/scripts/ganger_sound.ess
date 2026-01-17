@@ -120,7 +120,7 @@ sound ganger/sound/ambient_horror
 		audio_file      sound/samples/horror3.wav	
 	}
 	
-    gain                1.1
+    gain                1.2
     looping             0
     streaming			0
 	
@@ -266,6 +266,29 @@ sound ganger/sound/wingmites
     referenceDistance	45
 	
 	description			"metallic flutters"
+	notes				""
+	status				"beta"
+}
+
+
+sound ganger/sound/endgame
+{
+	random_file
+	{
+		audio_file      sound/samples/endgame.wav
+	}
+	
+    gain                1.5
+    looping             0
+    streaming			0
+	
+	freq_ratio_spread	0.2
+
+	group				"player"
+    rolloffFactor		6
+    referenceDistance	45
+	
+	description			"endgame music"
 	notes				""
 	status				"beta"
 }

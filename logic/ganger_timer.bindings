@@ -7,7 +7,7 @@ FlowGraphBindings
 			StringData
 			{
 				value
-				key "ga_text"
+				key "ganger_timer_text"
 			}
 
 		}
@@ -17,7 +17,7 @@ FlowGraphBindings
 			FloatData
 			{
 				value "0.000"
-				key "ga_time"
+				key "ganger_timer_time"
 			}
 
 		}
@@ -28,16 +28,16 @@ FlowGraphBindings
 
 	Bindings
 	{
-		ga_timer
+		ganger_timer
 		{
-			//database@Floats@FloatData[0]@value "ga_time"
+			//database@Floats@FloatData[0]@value "ganger_timer_time"
 			database
 			{
 				Floats
 				{
 					FloatData[0]
 					{
-						value "ga_time"
+						value "ganger_timer_time"
 					}
 
 				}
@@ -46,14 +46,14 @@ FlowGraphBindings
 				{
 					StringData[1]
 					{
-						value "ga_text"
+						value "ganger_timer_text"
 					}
 
 				}
 
 			}
 
-			//database@Strings@StringData[1]@value "ga_text"
+			//database@Strings@StringData[1]@value "ganger_timer_text"
 		}
 
 	}

@@ -59,7 +59,7 @@ FlowGraphTemplate
 					StringData
 					{
 						key "display_name"
-						value "gui/hud/objective_name/generic/ga_difficulty"
+						value "gui/hud/objective_name/generic/ganger_difficulty"
 					}
 
 					StringData
@@ -70,7 +70,7 @@ FlowGraphTemplate
 					StringData
 					{
 						key "unique_name_id"
-						value "ga_timer"
+						value "ganger_timer"
 					}
 
 					StringData
@@ -96,7 +96,7 @@ FlowGraphTemplate
 			}
 
 			script "lua/graph/objective/objective_spawn.lua"
-			self_id "ga_timer"
+			self_id "ganger_timer"
 		}
 
 		LuaBehaviourNode
@@ -147,7 +147,7 @@ FlowGraphTemplate
 					StringData
 					{
 						key "event_name"
-						value "ga_timer_remove"
+						value "ganger_timer_remove"
 					}
 
 				}
@@ -178,7 +178,7 @@ FlowGraphTemplate
 					StringData
 					{
 						key "unique_name_id"
-						value "ga_timer"
+						value "ganger_timer"
 					}
 
 				}
@@ -278,7 +278,7 @@ FlowGraphTemplate
 					StringData
 					{
 						key "unique_name_id"
-						value "ga_timer"
+						value "ganger_timer"
 					}
 
 					StringData
@@ -299,8 +299,8 @@ FlowGraphTemplate
 
 	GraphConnections
 	{
-		ga_timer "logic_wait_on_event_1"
-		default "ga_timer"
+		ganger_timer "logic_wait_on_event_1"
+		default "ganger_timer"
 		interface_hud_hide_text_1 "event_end_1"
 		interface_hud_show_text_1 "logic_wait_1"
 		logic_wait_1 "interface_hud_hide_text_1"

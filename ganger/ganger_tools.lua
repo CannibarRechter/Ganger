@@ -13,13 +13,18 @@ function ganger_tools:PlaySoundOnPlayer( sound )
     end
 
     local player = ganger_tools:GetPlayer()
+    if not player then
+        log("#### PlaySoundOnPlayer(): nil")
+        return
+    end    
+
     local ok, err = pcall(function()
         local entity = EntityService:SpawnEntity( sound, player, "" ) 
         --EntityService:CreateOrSetLifetime( entity, 120, "normal" ) -- unneeded if base bp is correct
         end)
 
     if not ok then
-		log("sound failed: " .. sound .. ": " .. tostring(err))       
+		log("#### sound failed: " .. sound .. ": " .. tostring(err))       
     end
 end
 ------------------------------------------------------------------------------------
@@ -35,6 +40,7 @@ end
 -- Spawn Validated Enemy
 ------------------------------------------------------------------------------------
 function ganger_tools:SpawnEnemy( blueprint, spawnPoint, groupName, aggression )
+    aggression = aggression or UNIT_AGGRESSIVE
     if ResourceManager:ResourceExists( "EntityBlueprint", blueprint ) then
         local enemy = nil
         if aggression == UNIT_AGGRESSIVE then
@@ -82,12 +88,11 @@ function ganger_tools:MaybeRemoveSpawnPoints( spawnPoints, entity )
     for i = #spawnPoints, 1, -1 do
         local entityPos = EntityService:GetPosition( entity )
         local spawnPointPos  = EntityService:GetPosition( spawnPoints[i] )
-        if Distance( entityPos, spawnPointPos ) > 128 then
+        if Distance( entityPos, spawnPointPos ) <= 128 then -- too closes
             table.remove(spawnPoints, i)
             countRemove = countRemove + 1
         end
     end
-    log("removed %d spawnpoints", countRemove)
 
 end
 -------------------------------------------------------------------------
@@ -192,10 +197,10 @@ function ganger_tools:SpawnWaveAtNearbySpawnPoints( wave, groupName, nSpawnPoint
     --aggression = aggression or UNIT_AGGRESSIVE
 
     local admissibleSpawnPoints = self:FindAdmissibleInteriorSpawnPoints()
+    log("SpawnWave found %d admissibles", #admissibleSpawnPoints )
     if not admissibleSpawnPoints then return end
     local spawnPointsToUse = self:DrawDistinctRandomsFromTable(admissibleSpawnPoints, nSpawnPoints)
-
-    --log("using %d spawn points", #spawnPointsToUse)
+    log("Spawn Wave drew %d spawn points", #spawnPointsToUse)
 
     for _,spawnPoint in ipairs( spawnPointsToUse) do
         --log("of #%d, using spawnpoint %d", #spawnPointsToUse, spawnPoint)
@@ -234,7 +239,7 @@ end
 function ganger_tools:SpawnAroundPlayer( blueprint, groupName, n )
     n = n or 1
 
-    local spawnDistance = RandInt(7, 13)
+    local spawnDistance = RandInt(17, 23)
     local ignoreWater = true 
     local player = self:GetPlayer()
     local spawnPoints = UnitService:CreateDynamicSpawnPoints( player, spawnDistance, n, ignoreWater )
@@ -246,6 +251,7 @@ function ganger_tools:SpawnAroundPlayer( blueprint, groupName, n )
         --log("spawned %d", enemy)
     end
 
+    return spawnPoints
 end
 -------------------------------------------------------------------------
 -- Find Admissable Interior Spawnpoints (logic/spawn_objective)

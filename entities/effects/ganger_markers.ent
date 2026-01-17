@@ -1,0 +1,60 @@
+
+EntityBlueprint "effects/no_lifetime"
+{
+	name effects/messages_and_markers/ganger_wingmites
+
+	MinimapItemDesc
+	{
+		type				"image"
+		icon_material 		"ganger/ganger_wingmites"
+		clamp_mode			"1"
+		visibility			"always"		
+		additional_z_order	"15"
+		layer_group			"warning"
+	}
+
+	ParticleDesc
+	{
+		name    "rift/objective_marker_red"
+	}
+
+	GuiDesc
+	{
+		def_name 		"gui/ganger/ganger_wingmites"
+		mode			"clamp"
+		clamp_in_frustum "0"
+		order 			"1"
+	}
+
+	NetAlwaysRevelantComponent
+}
+
+EntityBlueprint "effects/no_lifetime"
+{
+		name effects/messages_and_markers/ganger_assassins
+
+	MinimapItemDesc
+	{
+		type				"image"
+		icon_material 		"ganger/ganger_assassins"
+		clamp_mode			"1"
+		visibility			"always"		
+		additional_z_order	"15"
+		layer_group			"warning"
+	}
+
+	ParticleDesc
+	{
+		name    "rift/objective_marker_red"
+	}
+
+	GuiDesc
+	{
+		def_name 		"gui/ganger/ganger_assassins"
+		mode			"clamp"
+		clamp_in_frustum "0"
+		order 			"1"
+	}
+
+	NetAlwaysRevelantComponent
+}

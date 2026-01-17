@@ -9,8 +9,8 @@ EntityBlueprint
 		script "lua/units/ground/wingmite.lua"
 		database
 		{
-			min_scale	float:"1.25"
-			max_scale	float:"1.35"
+			min_scale	float:"1.65"
+			max_scale	float:"1.85"
 		}			
 	}
 
@@ -18,6 +18,7 @@ EntityBlueprint
 	{
 		version int:"1"	
 	}
+	MinimapItemDesc
 	{
 		type			"image"
 		icon_material 	"gui/hud/minimap_icons/gui_map_icon_boss"
@@ -26,8 +27,8 @@ EntityBlueprint
 	}
 	HealthDesc
 	{
-		max_health 					"750"
-		health 						"750"
+		max_health 					"1750"
+		health 						"1750"
 		regeneration 				"0"
 		regeneration_cooldown 		"0"
 		is_manual					"1"
@@ -43,7 +44,22 @@ EntityBlueprint
 			}
 		}		
 	}
-
+	HealthBarDesc
+	{
+		type "2"
+		mode "2" // 0 show always, 1 show in build mode, 2 show always if showing boss config enabled
+		material "gui/hud/bars/big_monster_hp_1x3"
+	}	
+	ResistanceComponent
+	{
+		physical		"0.1"
+		fire			"1.0"
+		acid			"1.0"
+		energy			"1.0"
+		cryo			"1.0"
+		area			"0.1"
+		reflect_damage_max_percent 		"0.1"
+	}
 	MeshDesc
 	{
 		mesh 		"meshes/units/ground/wingmite.mesh"

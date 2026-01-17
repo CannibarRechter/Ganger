@@ -47,7 +47,22 @@ EntityBlueprint
 			}
 		}		
 	}
-	
+	HealthBarDesc
+	{
+		type "2"
+		mode "2" // 0 show always, 1 show in build mode, 2 show always if showing boss config enabled
+		material "gui/hud/bars/big_monster_hp_1x3"
+	}	
+	ResistanceComponent
+	{
+		physical		"0.1"
+		fire			"1.0"
+		acid			"1.0"
+		energy			"1.0"
+		cryo			"1.0"
+		area			"0.1"
+		reflect_damage_max_percent 		"0.1"
+	}	
 	NavMeshMovementComponent
 	{
 		angle_turn_speed				"240"

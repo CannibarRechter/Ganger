@@ -142,8 +142,8 @@ EntityBlueprint
 
 	HealthDesc
 	{
-		max_health 					"475"
-		health 						"475"
+		max_health 					"1475"
+		health 						"1475"
 		regeneration 				"0"
 		regeneration_cooldown 		"0"
 		is_manual					"1"
@@ -158,6 +158,22 @@ EntityBlueprint
 				//destroyed_state_effect_group 		"0_state"
 			}
 		}		
+	}
+	HealthBarDesc
+	{
+		type "2"
+		mode "2" // 0 show always, 1 show in build mode, 2 show always if showing boss config enabled
+		material "gui/hud/bars/big_monster_hp_1x3"
+	}	
+	ResistanceComponent
+	{
+		physical		"0.1"
+		fire			"1.0"
+		acid			"1.0"
+		energy			"1.0"
+		cryo			"1.0"
+		area			"0.1"
+		reflect_damage_max_percent 		"0.1"
 	}
 
 	NavMeshMovementComponent
